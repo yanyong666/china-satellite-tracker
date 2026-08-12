@@ -30,8 +30,11 @@ export type MarketSnapshot = {
   dataStatus: "live" | "unavailable";
   sourceUrl: string;
 };
-export type FundFlowSummary = { asOf: string | null; latestMainNet: number | null; rolling5: number | null; rolling10: number | null; sourceUrl: string };
+export type FlowBreakdown = { main: number | null; superLarge: number | null; large: number | null; medium: number | null; small: number | null };
+export type FundFlowSummary = { asOf: string | null; latestMainNet: number | null; rolling5: number | null; rolling10: number | null; breakdown: FlowBreakdown; sourceUrl: string };
 export type TechnicalSummary = { ma5: number | null; ma10: number | null; ma20: number | null; supports: Array<{ label: string; range: string; description: string }> };
+export type IndexSnapshot = { key: "shanghai" | "chinext" | "star50"; name: string; symbol: string; price: number; change: number; changePct: number; sourceUrl: string };
+export type NorthboundDisclosure = { intradayStatus: "not-disclosed"; display: string; explanation: string; sourceUrl: string };
 
 export const STOCK_POOL: StockMeta[] = [
   { id: "china-satellite", code: "600118", market: "sh", name: "中国卫星", formalName: "中国东方红卫星股份有限公司", sector: "商业航天", sectorKey: "aerospace", events: [{ date: "2026-04-22", label: "一季报" }, { date: "2026-07-13", label: "业绩预告" }] },
@@ -48,6 +51,9 @@ const numberFrom = (value: unknown) => {
 const average = (values: number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 const quoteUrlFor = (stock: StockMeta) => `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${stock.market}${stock.code},day,,,100,qfq`;
 const flowUrlFor = (stock: StockMeta) => `https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt=101&secid=${stock.market === "sh" ? 1 : 0}.${stock.code}&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65`;
+const indexQuoteUrl = "https://qt.gtimg.cn/q=s_sh000001,s_sz399006,s_sh000688";
+const northboundDisclosureUrl = "https://www.sse.com.cn/aboutus/mediacenter/hotandd/c/c_20240412_10753188.shtml";
+const emptyBreakdown: FlowBreakdown = { main: null, superLarge: null, large: null, medium: null, small: null };
 
 export function getStock(stockId: StockId) {
   const stock = STOCK_POOL.find((item) => item.id === stockId);
@@ -100,15 +106,59 @@ export function getTechnicalSummary(bars: PricePoint[]): TechnicalSummary {
 
 export function parseFundFlow(payload: unknown, sourceUrl: string): FundFlowSummary {
   const lines = (payload as { data?: { klines?: unknown[] } })?.data?.klines;
-  if (!Array.isArray(lines) || lines.length === 0) return { asOf: null, latestMainNet: null, rolling5: null, rolling10: null, sourceUrl };
+  if (!Array.isArray(lines) || lines.length === 0) return { asOf: null, latestMainNet: null, rolling5: null, rolling10: null, breakdown: emptyBreakdown, sourceUrl };
   const flows = lines.flatMap((line) => {
     if (typeof line !== "string") return [];
     const fields = line.split(",");
     const value = numberFrom(fields[1]);
-    return fields[0] && Number.isFinite(value) ? [{ date: fields[0], mainNet: value }] : [];
+    return fields[0] && Number.isFinite(value) ? [{ date: fields[0], mainNet: value, small: numberFrom(fields[2]), medium: numberFrom(fields[3]), large: numberFrom(fields[4]), superLarge: numberFrom(fields[5]) }] : [];
   });
   const sum = (count: number) => flows.slice(-count).reduce((total, item) => total + item.mainNet, 0);
-  return { asOf: flows.at(-1)?.date ?? null, latestMainNet: flows.at(-1)?.mainNet ?? null, rolling5: sum(5), rolling10: sum(10), sourceUrl };
+  const latest = flows.at(-1);
+  return {
+    asOf: latest?.date ?? null,
+    latestMainNet: latest?.mainNet ?? null,
+    rolling5: sum(5),
+    rolling10: sum(10),
+    breakdown: latest ? { main: latest.mainNet, small: latest.small, medium: latest.medium, large: latest.large, superLarge: latest.superLarge } : emptyBreakdown,
+    sourceUrl,
+  };
+}
+
+export function parseIndexQuotes(raw: string): IndexSnapshot[] {
+  const definitions: Array<{ key: IndexSnapshot["key"]; query: string; name: string; symbol: string }> = [
+    { key: "shanghai", query: "sh000001", name: "上证指数", symbol: "000001.SH" },
+    { key: "chinext", query: "sz399006", name: "创业板指", symbol: "399006.SZ" },
+    { key: "star50", query: "sh000688", name: "科创50", symbol: "000688.SH" },
+  ];
+  return definitions.flatMap((definition) => {
+    const match = raw.match(new RegExp(`v_s_${definition.query}="([^"]+)"`));
+    const fields = match?.[1]?.split("~");
+    if (!fields || fields.length < 6) return [];
+    const price = numberFrom(fields[3]);
+    return price > 0 ? [{ key: definition.key, name: fields[1] || definition.name, symbol: definition.symbol, price, change: numberFrom(fields[4]), changePct: numberFrom(fields[5]), sourceUrl: indexQuoteUrl }] : [];
+  });
+}
+
+export function getNorthboundDisclosure(): NorthboundDisclosure {
+  return {
+    intradayStatus: "not-disclosed",
+    display: "盘中净流入未公开披露",
+    explanation: "沪深股通实时买入、卖出及交易总额已不再披露；页面不以估算值替代官方盘中净流入。",
+    sourceUrl: northboundDisclosureUrl,
+  };
+}
+
+export async function getMarketContext() {
+  const fallbackNorthbound = getNorthboundDisclosure();
+  try {
+    const response = await fetch(indexQuoteUrl, { headers: { "User-Agent": "AshareResearchTerminal/1.0" }, signal: AbortSignal.timeout(8_000) });
+    if (!response.ok) return { indices: [], northbound: fallbackNorthbound, updatedAt: new Date().toISOString() };
+    const text = new TextDecoder("gb18030").decode(await response.arrayBuffer());
+    return { indices: parseIndexQuotes(text), northbound: fallbackNorthbound, updatedAt: new Date().toISOString() };
+  } catch {
+    return { indices: [], northbound: fallbackNorthbound, updatedAt: new Date().toISOString() };
+  }
 }
 
 export function parseQuote(payload: unknown, stock: StockMeta) {
@@ -161,7 +211,7 @@ export async function getMarketData(stockId: StockId) {
   const quote = parseQuote(await quoteResult.value.json(), stock);
   const flow = flowResult.status === "fulfilled" && flowResult.value.ok
     ? parseFundFlow(await flowResult.value.json(), flowUrl)
-    : { asOf: null, latestMainNet: null, rolling5: null, rolling10: null, sourceUrl: flowUrl };
+    : { asOf: null, latestMainNet: null, rolling5: null, rolling10: null, breakdown: emptyBreakdown, sourceUrl: flowUrl };
   return { stock, ...quote, flow };
 }
 
