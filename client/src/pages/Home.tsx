@@ -1,176 +1,92 @@
 import { trpc } from "@/lib/trpc";
-import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, BarChart3, CalendarDays, CircleDot, Clock3, Database, ExternalLink, Gauge, Loader2, RefreshCw, ShieldAlert, TrendingUp } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { selectTerminalStock, sortOverviewByChange, type TerminalStockId } from "@/lib/terminalState";
+import { Area, AreaChart, CartesianGrid, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Building2, ChevronRight, CircleDot, Clock3, Database, ExternalLink, Filter, Loader2, RefreshCw, Search, ShieldAlert, TrendingUp } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const REFRESH_INTERVAL = 60_000;
+const sectorColors: Record<string, string> = { aerospace: "#d4ad62", "defense-electronics": "#d87368", semiconductor: "#ad8ee8", communications: "#58aab5", "new-energy": "#76ad73" };
 
-function money(value: number) {
+function money(value: number | null) {
+  if (value === null) return "—";
   if (Math.abs(value) >= 100_000_000) return `${(value / 100_000_000).toFixed(2)} 亿`;
   if (Math.abs(value) >= 10_000) return `${(value / 10_000).toFixed(2)} 万`;
   return value.toFixed(2);
 }
-
-function quoteTime(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? "时间待更新" : date.toLocaleString("zh-CN", { hour12: false });
-}
-
-function ScenarioCard({ scenario }: { scenario: { key: string; name: string; weight: number; range: string; description: string; trigger: string } }) {
-  const color = scenario.key === "baseline" ? "#c9a362" : scenario.key === "bullish" ? "#d75b54" : "#5ba6a3";
-  return (
-    <article className="scenario-card" style={{ "--scenario": color } as React.CSSProperties}>
-      <div className="scenario-topline">
-        <span className="scenario-name">{scenario.name}</span>
-        <span className="scenario-weight">{scenario.weight}%</span>
-      </div>
-      <p className="scenario-range">{scenario.range}</p>
-      <p className="scenario-description">{scenario.description}</p>
-      <div className="scenario-trigger"><CircleDot size={13} /> {scenario.trigger}</div>
-    </article>
-  );
-}
+function quoteTime(value?: string) { return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "时间待更新"; }
+function percentClass(value: number) { return value >= 0 ? "up" : "down"; }
 
 export default function Home() {
   const utils = trpc.useUtils();
-  const marketQuery = trpc.tracker.market.useQuery(undefined, { refetchInterval: REFRESH_INTERVAL, refetchOnWindowFocus: true });
-  const staticQuery = trpc.tracker.staticData.useQuery();
+  const [selectedId, setSelectedId] = useState<TerminalStockId>("china-satellite");
+  const [search, setSearch] = useState("");
+  const [sector, setSector] = useState("全部板块");
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    const id = window.setInterval(() => void marketQuery.refetch(), REFRESH_INTERVAL);
-    return () => window.clearInterval(id);
-  }, [marketQuery]);
-
+  const universeQuery = trpc.tracker.universe.useQuery();
+  const overviewQuery = trpc.tracker.overview.useQuery(undefined, { refetchInterval: REFRESH_INTERVAL, refetchOnWindowFocus: true });
+  const marketQuery = trpc.tracker.market.useQuery({ stockId: selectedId }, { refetchInterval: REFRESH_INTERVAL, refetchOnWindowFocus: true });
+  const researchQuery = trpc.tracker.research.useQuery({ stockId: selectedId });
+  const universe = universeQuery.data ?? [];
+  const overview = overviewQuery.data ?? [];
   const market = marketQuery.data;
-  const tracking = staticQuery.data;
-  const bars = market?.bars ?? [];
-  const highest = useMemo(() => bars.reduce((best, bar) => (bar.high > (best?.high ?? -Infinity) ? bar : best), bars[0]), [bars]);
-  const lowest = useMemo(() => bars.reduce((best, bar) => (bar.low < (best?.low ?? Infinity) ? bar : best), bars[0]), [bars]);
-  const changePositive = (market?.snapshot.change ?? 0) >= 0;
-
+  const research = researchQuery.data;
+  const selectedStock = universe.find((item) => item.id === selectedId);
+  const availableIds = useMemo(() => universe.map((item) => item.id as TerminalStockId), [universe]);
+  const sectors = ["全部板块", ...Array.from(new Set(universe.map((item) => item.sector)))];
+  const filtered = useMemo(() => sortOverviewByChange(overview.filter((item) => {
+    const matchesSector = sector === "全部板块" || item.stock.sector === sector;
+    const target = `${item.stock.name}${item.stock.code}${item.stock.sector}`.toLowerCase();
+    return matchesSector && target.includes(search.trim().toLowerCase());
+  })), [overview, search, sector]);
+  const gainers = useMemo(() => sortOverviewByChange(overview.filter((item) => item.snapshot)).slice(0, 3), [overview]);
   const refreshNow = async () => {
     setRefreshing(true);
     try {
-      await utils.tracker.market.invalidate();
-      await marketQuery.refetch();
-      toast.success("已更新公开行情快照");
-    } catch {
-      toast.error("行情暂时不可用，已保留最近公开快照");
-    } finally {
-      setRefreshing(false);
-    }
+      await Promise.all([utils.tracker.overview.invalidate(), utils.tracker.market.invalidate({ stockId: selectedId })]);
+      await Promise.all([overviewQuery.refetch(), marketQuery.refetch()]);
+      toast.success("已刷新股票池公开行情");
+    } catch { toast.error("部分公开行情暂不可用，请稍后再试"); }
+    finally { setRefreshing(false); }
   };
 
-  if (!market || !tracking) {
-    return <div className="loading-screen"><Loader2 className="animate-spin" size={28} /><span>正在载入公开披露与行情数据</span></div>;
-  }
-
-  return (
-    <div className="tracker-shell">
-      <header className="topbar">
-        <div className="brand-block">
-          <span className="eyebrow">EQUITY RESEARCH / 600118.SH</span>
-          <h1>中国卫星 <span>动态追踪</span></h1>
-        </div>
-        <nav aria-label="页面导航">
-          <a href="#market">市场快照</a><a href="#outlook">情景预测</a><a href="#financials">财务摘要</a><a href="#risks">风险监控</a>
-        </nav>
-        <button className="refresh-button" onClick={refreshNow} disabled={refreshing}>
-          <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> {refreshing ? "更新中" : "立即刷新"}
-        </button>
-      </header>
-
-      <main>
-        <section className="hero-grid" id="market">
-          <div className="hero-copy">
-            <div className="live-kicker"><span className={market.snapshot.dataStatus === "live" ? "live-pulse" : "snapshot-pulse"}></span>{market.snapshot.dataStatus === "live" ? "公开行情 · 页面自动刷新" : "公开快照 · 行情源暂不可用"}</div>
-            <p className="hero-label">中国东方红卫星股份有限公司</p>
-            <div className="price-row">
-              <strong>{market.snapshot.price.toFixed(2)}</strong><span>CNY</span>
-              <div className={changePositive ? "change-block positive" : "change-block negative"}>{changePositive ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />} {market.snapshot.change.toFixed(2)} ({market.snapshot.changePct.toFixed(2)}%)</div>
-            </div>
-            <p className="hero-meta"><Clock3 size={14} /> 最后更新：{quoteTime(market.snapshot.updatedAt)} · {market.snapshot.symbol}</p>
-            <div className="hero-note">面向投资研究读者的公开数据追踪页面。行情于页面打开后自动刷新，每 60 秒更新一次。</div>
-          </div>
-          <div className="metric-grid">
-            <div className="metric-tile"><span>成交额</span><strong>{money(market.snapshot.turnover)}</strong><small>当日公开行情</small></div>
-            <div className="metric-tile"><span>总市值</span><strong>{money(market.snapshot.marketCap)}</strong><small>价格 × 公开股本</small></div>
-            <div className="metric-tile"><span>日内区间</span><strong>{market.snapshot.low.toFixed(2)}–{market.snapshot.high.toFixed(2)}</strong><small>开盘 {market.snapshot.open.toFixed(2)}</small></div>
-            <div className="metric-tile"><span>成交量</span><strong>{money(market.snapshot.volume)}</strong><small>公开行情口径</small></div>
-          </div>
+  if (!market || !selectedStock) return <div className="terminal-loading"><Loader2 className="animate-spin" size={27} /> 正在建立公开行情终端</div>;
+  const positive = market.snapshot.change >= 0;
+  const chartColor = sectorColors[selectedStock.sectorKey];
+  return <div className="terminal-shell">
+    <header className="terminal-header">
+      <div className="terminal-brand"><span className="brand-mark"><BarChart3 size={17} /></span><div><span className="overline">PUBLIC MARKET INTELLIGENCE</span><h1>华夏股票研究终端</h1></div></div>
+      <div className="market-status"><Activity size={14} /><span>页面打开时刷新 · 60 秒更新</span></div>
+      <button onClick={refreshNow} disabled={refreshing} className="terminal-refresh"><RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> {refreshing ? "更新中" : "刷新行情"}</button>
+    </header>
+    <div className="terminal-layout">
+      <aside className="terminal-sidebar">
+        <div className="sidebar-title"><span>重点股票池</span><small>{universe.length} 只标的</small></div>
+        <div className="search-box"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索名称或代码" /></div>
+        <div className="sector-chips">{sectors.map((item) => <button key={item} onClick={() => setSector(item)} className={sector === item ? "active" : ""}>{item}</button>)}</div>
+        <div className="stock-list">{filtered.map((item) => <button key={item.stock.id} onClick={() => setSelectedId((current) => selectTerminalStock(current, item.stock.id as TerminalStockId, availableIds))} className={`stock-row ${selectedId === item.stock.id ? "selected" : ""}`}>
+          <span className="sector-dot" style={{ background: sectorColors[item.stock.sectorKey] }}></span><div className="stock-row-name"><strong>{item.stock.name}</strong><small>{item.stock.code} · {item.stock.sector}</small></div><div className={percentClass(item.snapshot?.changePct ?? 0)}><strong>{item.snapshot ? item.snapshot.price.toFixed(2) : "—"}</strong><small>{item.snapshot ? `${item.snapshot.changePct >= 0 ? "+" : ""}${item.snapshot.changePct.toFixed(2)}%` : "来源暂不可用"}</small></div>
+        </button>)}</div>
+        <div className="sidebar-foot"><Database size={14} /> <span>公开行情与资金流<br/>以来源时间戳为准</span></div>
+      </aside>
+      <main className="terminal-main">
+        <section className="market-strip"><div><span className="overline">MARKET PULSE</span><h2>今日涨幅前列</h2></div><div className="gainer-list">{gainers.map((item) => <button key={item.stock.id} onClick={() => setSelectedId((current) => selectTerminalStock(current, item.stock.id as TerminalStockId, availableIds))}><span>{item.stock.name}</span><strong className={percentClass(item.snapshot?.changePct ?? 0)}>{item.snapshot ? `${item.snapshot.changePct >= 0 ? "+" : ""}${item.snapshot.changePct.toFixed(2)}%` : "—"}</strong></button>)}</div></section>
+        <section className="instrument-head">
+          <div><div className="instrument-path"><span style={{ color: chartColor }}>{selectedStock.sector}</span><ChevronRight size={13} /> {market.snapshot.symbol}</div><h2>{market.snapshot.name}<span>{market.snapshot.symbol}</span></h2><p>{selectedStock.formalName}</p></div>
+          <div className="quote-block"><div className="quote-price">{market.snapshot.price.toFixed(2)} <small>CNY</small></div><div className={`quote-change ${positive ? "up" : "down"}`}>{positive ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}{market.snapshot.change.toFixed(2)} · {market.snapshot.changePct.toFixed(2)}%</div><div className="quote-time"><Clock3 size={12} /> {quoteTime(market.snapshot.updatedAt)}</div></div>
         </section>
-
-        <section className="content-grid chart-section">
-          <div className="panel chart-panel">
-            <div className="section-heading"><div><span className="eyebrow">FRONT-ADJUSTED · 100 TRADING DAYS</span><h2>价格走势图</h2></div><span className="source-chip"><Database size={13} /> 公开前复权日线</span></div>
-            <div className="chart-wrap">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={bars} margin={{ top: 22, right: 10, left: -18, bottom: 6 }}>
-                  <defs><linearGradient id="priceFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#c9a362" stopOpacity={0.3} /><stop offset="100%" stopColor="#c9a362" stopOpacity={0} /></linearGradient></defs>
-                  <CartesianGrid stroke="rgba(225,233,239,0.07)" vertical={false} />
-                  <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} interval="preserveStartEnd" minTickGap={54} tick={{ fill: "#87909c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={["dataMin - 4", "dataMax + 4"]} tick={{ fill: "#87909c", fontSize: 11 }} axisLine={false} tickLine={false} width={48} />
-                  <Tooltip cursor={{ stroke: "rgba(201,163,98,.4)", strokeWidth: 1 }} contentStyle={{ background: "#151a21", border: "1px solid rgba(225,233,239,.12)", borderRadius: 10, color: "#e9e3d5" }} labelStyle={{ color: "#9ca3ad" }} formatter={(value: number) => [`${value.toFixed(2)} 元`, "收盘"]} />
-                  <ReferenceLine y={70} stroke="#c9a362" strokeDasharray="4 6" strokeOpacity={0.45} label={{ value: "70 元验证区", fill: "#c9a362", position: "insideTopRight", fontSize: 11 }} />
-                  <ReferenceLine y={57} stroke="#5ba6a3" strokeDasharray="4 6" strokeOpacity={0.45} label={{ value: "57 元支撑区", fill: "#79bdb9", position: "insideBottomRight", fontSize: 11 }} />
-                  <Area type="monotone" dataKey="close" stroke="#d9b56f" strokeWidth={2.2} fill="url(#priceFill)" />
-                  {market.markers.filter((marker) => marker.kind === "high" || marker.kind === "low").map((marker) => <ReferenceDot key={`${marker.kind}-${marker.date}`} x={marker.date} y={marker.value} r={4} fill={marker.kind === "high" ? "#d75b54" : "#5ba6a3"} stroke="#0d1015" strokeWidth={2} label={{ value: marker.label, fill: marker.kind === "high" ? "#d98b84" : "#77b8b5", position: marker.kind === "high" ? "top" : "bottom", fontSize: 11 }} />)}
-                  {market.markers.filter((marker) => marker.kind === "event").map((marker) => <ReferenceDot key={`${marker.kind}-${marker.date}`} x={marker.date} y={marker.value} r={3.5} fill="#c9a362" stroke="#0d1015" strokeWidth={2} label={{ value: marker.label, fill: "#e2c789", position: "right", fontSize: 10 }} />)}
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="event-notes"><span><CalendarDays size={14} /> 2026-04-22 · 一季报披露</span><span><CalendarDays size={14} /> 2026-07-13 · 半年度业绩预告</span><span><BarChart3 size={14} /> 图表为前复权日线</span></div>
-          </div>
-          <aside className="panel chart-aside">
-            <span className="eyebrow">PRICE STRUCTURE</span><h3>关键价格结构</h3>
-            <div className="level-item"><span>短期验证区</span><strong>70.00 元</strong><small>放量站稳后观察延续性</small></div>
-            <div className="level-item"><span>近期支撑带</span><strong>57–60 元</strong><small>跌破后需重估反弹结构</small></div>
-            <div className="level-item"><span>区间内高点</span><strong>{highest?.high.toFixed(2) ?? "—"} 元</strong><small>近 100 个交易日前复权日线</small></div>
-            <p className="aside-note"><AlertTriangle size={14} /> 技术区间用于观察价格结构，不构成买卖建议。</p>
-          </aside>
+        <section className="quote-metrics"><div><span>成交额</span><strong>{money(market.snapshot.turnover)}</strong></div><div><span>日内区间</span><strong>{market.snapshot.low.toFixed(2)}–{market.snapshot.high.toFixed(2)}</strong></div><div><span>成交量</span><strong>{money(market.snapshot.volume)}</strong></div><div><span>5 日主力净额</span><strong className={percentClass(market.flow.rolling5 ?? 0)}>{money(market.flow.rolling5)}</strong></div><div><span>10 日主力净额</span><strong className={percentClass(market.flow.rolling10 ?? 0)}>{money(market.flow.rolling10)}</strong></div></section>
+        <section className="detail-grid">
+          <article className="terminal-panel chart-card"><div className="panel-heading"><div><span className="overline">100 TRADING DAYS · QFQ</span><h3>前复权价格走势</h3></div><span className="live-tag">{market.snapshot.dataStatus === "live" ? "公开行情" : "数据回退"}</span></div><div className="terminal-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={market.bars} margin={{ top: 24, right: 8, left: -15, bottom: 3 }}><defs><linearGradient id="terminalFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={chartColor} stopOpacity={0.33} /><stop offset="100%" stopColor={chartColor} stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="rgba(255,255,255,.06)" vertical={false} /><XAxis dataKey="date" tickFormatter={(value) => value.slice(5)} interval="preserveStartEnd" minTickGap={44} tick={{ fill: "#8993a1", fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis domain={["dataMin - 2", "dataMax + 2"]} tick={{ fill: "#8993a1", fontSize: 10 }} axisLine={false} tickLine={false} width={46} /><Tooltip cursor={{ stroke: "rgba(255,255,255,.2)" }} contentStyle={{ background: "#11161e", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, color: "#e8e2d6" }} formatter={(value: number) => [`${value.toFixed(2)} 元`, "收盘"]} /><Area type="monotone" dataKey="close" stroke={chartColor} strokeWidth={2.2} fill="url(#terminalFill)" />{market.markers.map((marker) => <ReferenceDot key={`${marker.kind}-${marker.date}-${marker.label}`} x={marker.date} y={marker.value} r={marker.kind === "event" ? 3 : 4} fill={marker.kind === "high" ? "#de7167" : marker.kind === "low" ? "#62b1ab" : chartColor} stroke="#0e131a" strokeWidth={2} label={{ value: marker.label, fill: marker.kind === "high" ? "#dd8c83" : marker.kind === "low" ? "#76bdb8" : "#d7b66e", position: marker.kind === "low" ? "bottom" : "top", fontSize: 10 }} />)}</AreaChart></ResponsiveContainer></div><div className="chart-caption"><span><CircleDot size={12} /> 高低点及已配置披露事件</span><a href={market.snapshot.sourceUrl} target="_blank" rel="noreferrer">行情来源 <ExternalLink size={12} /></a></div></article>
+          <aside className="terminal-panel support-card"><div className="panel-heading"><div><span className="overline">TECHNICAL MAP</span><h3>技术面支撑</h3></div><Filter size={17} /></div><div className="ma-row"><span>MA5</span><strong>{market.technical.ma5?.toFixed(2) ?? "—"}</strong><span>MA10</span><strong>{market.technical.ma10?.toFixed(2) ?? "—"}</strong><span>MA20</span><strong>{market.technical.ma20?.toFixed(2) ?? "—"}</strong></div><div className="support-list">{market.technical.supports.map((item) => <div key={item.label}><span>{item.label}</span><strong>{item.range}</strong><p>{item.description}</p></div>)}</div><p className="panel-disclaimer"><ShieldAlert size={13} /> 价格区间仅用于观察，不构成买卖建议。</p></aside>
         </section>
-
-        <section className="section-block" id="outlook">
-          <div className="section-heading"><div><span className="eyebrow">THREE-MONTH FRAMEWORK</span><h2>三个月情景预测面板</h2></div><p>基准价格：{market.snapshot.price.toFixed(2)} 元 · 情景权重为研究判断，非收益概率保证。</p></div>
-          <div className="scenario-grid">{tracking.scenarios.map((scenario) => <ScenarioCard key={scenario.key} scenario={scenario} />)}</div>
-        </section>
-
-        <section className="content-grid two-panel-section">
-          <div className="panel timeline-panel">
-            <div className="section-heading"><div><span className="eyebrow">DISCLOSURE WATCH</span><h2>业绩催化时间轴</h2></div></div>
-            <div className="timeline">{tracking.catalysts.map((event, index) => <div className="timeline-item" key={event.title}><div className="timeline-marker">{index + 1}</div><div><div className="timeline-meta"><span>{event.date}</span><em className={event.status === "已披露" ? "status-published" : "status-pending"}>{event.status}</em></div><h3>{event.title}</h3><p>{event.content}</p><a href={event.source} target="_blank" rel="noreferrer">公开披露来源 <ExternalLink size={12} /></a></div></div>)}</div>
-          </div>
-          <div className="panel risk-panel" id="risks">
-            <div className="section-heading"><div><span className="eyebrow">VERIFIABLE RISKS</span><h2>风险监控清单</h2></div></div>
-            <div className="risk-list">{tracking.risks.map((risk) => <div className="risk-row" key={risk.name}><div><span className="risk-name">{risk.name}</span><p>{risk.description}</p></div><div className="risk-value"><strong>{risk.value}</strong><span>{risk.status}</span></div></div>)}</div>
-          </div>
-        </section>
-
-        <section className="section-block" id="financials">
-          <div className="section-heading"><div><span className="eyebrow">DISCLOSED FINANCIALS</span><h2>财务数据摘要卡片</h2></div><p>以公开定期报告口径呈现，非经审计数据已明确标注。</p></div>
-          <div className="financial-grid">{tracking.financials.map((financial) => <article className="financial-card" key={financial.period}><div className="financial-header"><h3>{financial.period}</h3><span>{financial.audited}</span></div><div className="financial-stat-grid"><div><span>营收</span><strong>{financial.revenue}</strong></div><div><span>归母净利润</span><strong>{financial.profit}</strong></div><div><span>毛利率</span><strong>{financial.margin}</strong></div><div><span>经营现金流</span><strong>{financial.cashflow}</strong></div></div><p>{financial.note}</p><a href={financial.source} target="_blank" rel="noreferrer">查看公开披露 <ExternalLink size={13} /></a></article>)}</div>
-        </section>
+        <section className="bottom-grid"><article className="terminal-panel coverage-card"><div className="panel-heading"><div><span className="overline">RESEARCH COVERAGE</span><h3>{research?.coverage === "deep" ? "已建立研究卡" : "基础行情覆盖"}</h3></div><Building2 size={17} /></div><p>{research?.coverage === "deep" ? "该标的已配置公开披露来源和研究观察项。" : "已接入公开行情、资金流与技术面；财务催化和风险卡待按原始披露补充。"}</p><ul>{research?.watchpoints.map((item) => <li key={item}><TrendingUp size={13} /> {item}</li>)}</ul></article><article className="terminal-panel flow-card"><div className="panel-heading"><div><span className="overline">CAPITAL FLOW</span><h3>公开资金流</h3></div><Activity size={17} /></div><div className="flow-stat"><span>最近完整交易日</span><strong className={percentClass(market.flow.latestMainNet ?? 0)}>{money(market.flow.latestMainNet)}</strong><small>{market.flow.asOf ?? "待更新"}</small></div><p>主力净额为公开成交方向估算，不等同于实际机构持仓或公司现金流。</p><a href={market.flow.sourceUrl} target="_blank" rel="noreferrer">查看资金流来源 <ExternalLink size={12} /></a></article><article className="terminal-panel source-card"><div className="panel-heading"><div><span className="overline">SOURCE TRACE</span><h3>研究来源</h3></div><Database size={17} /></div><a href={market.snapshot.sourceUrl} target="_blank" rel="noreferrer">前复权日线与实时行情 <ExternalLink size={12} /></a>{research?.sources.map((source) => <a key={source.label} href={source.url} target="_blank" rel="noreferrer">{source.label} <ExternalLink size={12} /></a>)}</article></section>
       </main>
-
-      <footer>
-        <div className="footer-top"><div><span className="eyebrow">DATA GOVERNANCE</span><h2>公开数据 · 研究呈现 · 审慎解读</h2></div><div className="footer-icon"><ShieldAlert size={25} /></div></div>
-        <p className="disclaimer">所有数据均来自公开披露，不构成投资建议。</p>
-        <p className="footer-copy">行情与前复权日线由公开行情接口提供；财务与业绩催化取自公司定期报告、业绩预告及上海证券交易所公开披露。页面打开时自动读取并每 60 秒更新行情快照；披露数据以来源文件为准。</p>
-        <div className="source-links">{tracking.sources.map((source) => <a key={source.label} href={source.url} target="_blank" rel="noreferrer">{source.label} <ExternalLink size={12} /></a>)}</div>
-      </footer>
-
-      <style>{`
-        .tracker-shell{min-height:100vh;background:radial-gradient(circle at 80% 0%,rgba(201,163,98,.10),transparent 28%),linear-gradient(180deg,#10141a 0%,#0d1015 48%,#101318 100%);color:var(--ink);font-family:var(--font-sans)}
-        .topbar{height:82px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(22px,5vw,76px);border-bottom:1px solid var(--line);background:rgba(13,16,21,.76);backdrop-filter:blur(18px);position:sticky;top:0;z-index:30}.brand-block h1{font-family:var(--font-serif);font-size:21px;line-height:1;margin:5px 0 0;letter-spacing:.04em}.brand-block h1 span{color:var(--gold)}.eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.17em;color:var(--gold);text-transform:uppercase}.topbar nav{display:flex;gap:24px}.topbar nav a{font-size:13px;color:#abb2ba;text-decoration:none;transition:color .18s ease}.topbar nav a:hover{color:var(--gold-soft)}.refresh-button{border:1px solid rgba(201,163,98,.5);background:rgba(201,163,98,.1);color:var(--gold-soft);border-radius:8px;padding:10px 13px;font:500 12px var(--font-sans);display:flex;gap:8px;align-items:center;cursor:pointer;transition:all .16s ease}.refresh-button:hover{background:rgba(201,163,98,.18);transform:translateY(-1px)}.refresh-button:active{transform:scale(.97)}.refresh-button:disabled{opacity:.65;cursor:wait}
-        main{max-width:1440px;margin:0 auto;padding:0 clamp(20px,5vw,76px) 82px}.hero-grid{padding:64px 0 48px;display:grid;grid-template-columns:1.1fr .9fr;gap:42px;align-items:end}.live-kicker{display:flex;align-items:center;gap:8px;color:#afb6bf;font-size:12px}.live-pulse,.snapshot-pulse{display:block;width:8px;height:8px;border-radius:50%;background:#d75b54;box-shadow:0 0 0 5px rgba(215,91,84,.13)}.snapshot-pulse{background:#c9a362;box-shadow:0 0 0 5px rgba(201,163,98,.13)}.hero-label{color:#9ba4ae;font-size:14px;margin:24px 0 8px}.price-row{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px}.price-row strong{font-family:var(--font-serif);font-size:clamp(56px,7vw,92px);line-height:.93;font-weight:700;letter-spacing:-.05em}.price-row>span{font:12px var(--font-mono);color:var(--gold);margin-bottom:13px}.change-block{margin:0 0 11px 6px;padding:7px 9px;border-radius:6px;font:500 13px var(--font-mono);display:flex;align-items:center;gap:4px}.positive{color:#ef837b;background:rgba(215,91,84,.12)}.negative{color:#7bc1bd;background:rgba(91,166,163,.12)}.hero-meta{margin:20px 0 0;color:#88919c;font:11px var(--font-mono);display:flex;gap:7px;align-items:center}.hero-note{margin-top:18px;max-width:560px;border-left:2px solid var(--gold);padding:7px 0 7px 13px;color:#b7bdc5;font-size:12px;line-height:1.8}.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric-tile{background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.017));border:1px solid var(--line);border-radius:10px;padding:19px}.metric-tile span,.financial-stat-grid span{display:block;color:#8f98a3;font-size:11px;margin-bottom:10px}.metric-tile strong{font:500 21px var(--font-mono);letter-spacing:-.05em;display:block}.metric-tile small{display:block;color:#71808d;font-size:10px;margin-top:9px}
-        .content-grid{display:grid;grid-template-columns:1.8fr .8fr;gap:18px}.panel,.scenario-card,.financial-card{background:linear-gradient(135deg,rgba(255,255,255,.048),rgba(255,255,255,.018));border:1px solid var(--line);border-radius:12px}.chart-panel,.timeline-panel,.risk-panel{padding:25px}.section-heading{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.section-heading h2{font:700 26px var(--font-serif);letter-spacing:.03em;margin:7px 0 0}.section-heading>p{max-width:410px;color:#9099a4;font-size:12px;line-height:1.8;margin:5px 0 0;text-align:right}.source-chip{font:11px var(--font-mono);color:#b5bcc4;border:1px solid var(--line);padding:6px 8px;border-radius:5px;display:flex;gap:5px;align-items:center}.chart-wrap{height:360px;margin-top:18px}.event-notes{display:flex;flex-wrap:wrap;gap:16px;border-top:1px solid var(--line);padding-top:15px;color:#84909c;font-size:11px}.event-notes span{display:flex;align-items:center;gap:6px}.chart-aside{padding:25px}.chart-aside h3{font:700 23px var(--font-serif);margin:7px 0 26px}.level-item{padding:15px 0;border-top:1px solid var(--line)}.level-item span{display:block;color:#969fa9;font-size:11px;margin-bottom:6px}.level-item strong{font:500 20px var(--font-mono)}.level-item small{display:block;color:#757e89;font-size:11px;margin-top:7px}.aside-note{border-top:1px solid var(--line);padding-top:15px;margin:18px 0 0;color:#9c837b;font-size:11px;line-height:1.65;display:flex;gap:7px}
-        .section-block{margin-top:64px}.scenario-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:19px}.scenario-card{padding:21px;position:relative;overflow:hidden}.scenario-card:before{content:"";position:absolute;top:0;left:0;width:100%;height:3px;background:var(--scenario)}.scenario-topline{display:flex;justify-content:space-between;align-items:center}.scenario-name{font-weight:600;font-size:14px}.scenario-weight{font:500 18px var(--font-mono);color:var(--scenario)}.scenario-range{font:700 22px var(--font-serif);margin:23px 0 16px}.scenario-description{color:#a3abb5;font-size:12px;line-height:1.8;min-height:64px;margin:0}.scenario-trigger{margin-top:18px;padding-top:13px;border-top:1px solid var(--line);color:#c9d0d6;font-size:11px;line-height:1.6;display:flex;gap:7px;align-items:flex-start}.two-panel-section{margin-top:64px;grid-template-columns:1fr 1fr}.timeline{margin-top:26px}.timeline-item{display:grid;grid-template-columns:32px 1fr;gap:14px;padding-bottom:24px;position:relative}.timeline-item:before{content:"";position:absolute;left:15px;top:31px;width:1px;height:calc(100% - 7px);background:var(--line)}.timeline-item:last-child:before{display:none}.timeline-marker{width:31px;height:31px;border:1px solid rgba(201,163,98,.48);border-radius:50%;display:grid;place-items:center;color:var(--gold);font:11px var(--font-mono);background:#161a20;z-index:1}.timeline-meta{display:flex;gap:9px;align-items:center;color:#8f98a3;font:11px var(--font-mono)}.timeline-meta em{font-style:normal;padding:2px 6px;border-radius:3px}.status-published{color:#e47a73;background:rgba(215,91,84,.13)}.status-pending{color:#d0aa69;background:rgba(201,163,98,.1)}.timeline h3{font-size:15px;margin:8px 0}.timeline p{font-size:12px;color:#a9b0b8;line-height:1.8;margin:0 0 9px}.timeline a,.financial-card a{color:var(--gold-soft);font-size:11px;display:inline-flex;align-items:center;gap:5px;text-decoration:none}.risk-list{margin-top:17px}.risk-row{display:flex;justify-content:space-between;gap:20px;padding:17px 0;border-top:1px solid var(--line)}.risk-name{font-size:14px;font-weight:600}.risk-row p{max-width:350px;color:#949da7;font-size:11px;line-height:1.75;margin:7px 0 0}.risk-value{text-align:right;min-width:120px}.risk-value strong{font:500 15px var(--font-mono);display:block}.risk-value span{display:inline-block;margin-top:8px;background:rgba(201,163,98,.1);color:var(--gold-soft);padding:3px 6px;border-radius:3px;font-size:10px}
-        .financial-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}.financial-card{padding:22px}.financial-header{display:flex;justify-content:space-between;align-items:center}.financial-header h3{font:700 20px var(--font-serif);margin:0}.financial-header span{font-size:10px;color:#a7b0b9;border:1px solid var(--line);padding:4px 7px;border-radius:4px}.financial-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 25px;padding:22px 0;margin:20px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.financial-stat-grid strong{font:500 19px var(--font-mono);letter-spacing:-.045em}.financial-card p{color:#99a3ad;font-size:11px;line-height:1.8;margin:0 0 15px}
-        footer{max-width:1440px;margin:0 auto;padding:35px clamp(20px,5vw,76px) 52px;border-top:1px solid var(--line)}.footer-top{display:flex;align-items:end;justify-content:space-between}.footer-top h2{font:700 25px var(--font-serif);margin:7px 0 0}.footer-icon{width:43px;height:43px;border:1px solid rgba(201,163,98,.4);border-radius:50%;display:grid;place-items:center;color:var(--gold)}.disclaimer{font:700 18px var(--font-serif);color:var(--gold-soft);margin:28px 0 8px}.footer-copy{max-width:780px;color:#87919c;font-size:11px;line-height:1.85;margin:0}.source-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.source-links a{border:1px solid var(--line);border-radius:5px;padding:7px 8px;display:flex;align-items:center;gap:5px;text-decoration:none;color:#aab2bb;font-size:10px;transition:all .16s ease}.source-links a:hover{color:var(--gold-soft);border-color:rgba(201,163,98,.45)}.loading-screen{height:100vh;display:flex;gap:12px;align-items:center;justify-content:center;background:var(--canvas);color:#b7bfca;font-size:13px}
-        @media(max-width:960px){.topbar nav{display:none}.hero-grid,.content-grid,.two-panel-section{grid-template-columns:1fr}.chart-aside{display:none}.scenario-grid{grid-template-columns:1fr}.hero-grid{gap:30px}.section-heading>p{display:none}}@media(max-width:620px){.topbar{height:70px;padding:0 18px}.brand-block h1{font-size:18px}.refresh-button{padding:9px}.hero-grid{padding-top:43px}.metric-grid,.financial-grid{grid-template-columns:1fr 1fr}.metric-tile{padding:14px}.metric-tile strong{font-size:17px}.price-row strong{font-size:58px}.section-heading h2{font-size:22px}.chart-panel{padding:17px}.chart-wrap{height:275px}.event-notes{gap:9px}.financial-card{padding:17px}.financial-stat-grid{gap:17px 10px}.financial-stat-grid strong{font-size:15px}.risk-row{gap:12px}.risk-value{min-width:94px}.footer-top h2{font-size:21px}.disclaimer{font-size:16px}}
-      `}</style>
     </div>
-  );
+    <footer className="terminal-footer"><span>所有数据均来自公开披露，不构成投资建议。</span><small>当前股票池为首期重点覆盖；页面打开时读取公开行情并每 60 秒刷新，个股深度研究以可追溯披露来源为准。</small></footer>
+    <style>{`
+      .terminal-shell{min-height:100vh;background:#0a0e14;color:#e9e4d8;font-family:var(--font-sans)}.terminal-header{height:70px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.1);background:rgba(9,13,19,.9);position:sticky;top:0;z-index:30;backdrop-filter:blur(14px)}.terminal-brand{display:flex;align-items:center;gap:10px}.brand-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;background:#d1a857;color:#111722}.overline{display:block;font:10px var(--font-mono);letter-spacing:.16em;color:#d3ad65}.terminal-brand h1{font:700 18px var(--font-serif);margin:2px 0 0;letter-spacing:.06em}.market-status{display:flex;gap:7px;align-items:center;color:#8994a3;font-size:11px}.market-status svg{color:#62b1ab}.terminal-refresh{display:flex;gap:7px;align-items:center;border:1px solid rgba(211,173,101,.55);background:rgba(211,173,101,.09);color:#e7c979;border-radius:6px;padding:9px 11px;font-size:12px;cursor:pointer}.terminal-refresh:disabled{opacity:.6}.terminal-layout{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:calc(100vh - 70px)}.terminal-sidebar{border-right:1px solid rgba(255,255,255,.09);padding:22px 14px;background:#0e131a}.sidebar-title{display:flex;justify-content:space-between;align-items:center;padding:0 7px 14px}.sidebar-title span{font-weight:600;font-size:13px}.sidebar-title small{font:10px var(--font-mono);color:#8d97a5}.search-box{display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.12);background:#101720;border-radius:6px;padding:9px 10px;color:#8792a0}.search-box input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:#e6e0d2;font-size:12px}.sector-chips{display:flex;gap:6px;flex-wrap:wrap;padding:14px 3px}.sector-chips button{border:0;background:transparent;color:#8e99a7;padding:5px 6px;font-size:10px;cursor:pointer}.sector-chips button.active{color:#e4c275;background:rgba(211,173,101,.12);border-radius:4px}.stock-list{display:flex;flex-direction:column;gap:4px}.stock-row{display:grid;grid-template-columns:7px 1fr auto;align-items:center;gap:8px;width:100%;padding:11px 8px;border:1px solid transparent;background:transparent;border-radius:7px;color:inherit;text-align:left;cursor:pointer}.stock-row:hover{background:rgba(255,255,255,.035)}.stock-row.selected{border-color:rgba(211,173,101,.45);background:linear-gradient(90deg,rgba(211,173,101,.12),rgba(211,173,101,.02))}.sector-dot{width:5px;height:22px;border-radius:5px}.stock-row-name strong,.stock-row>div:last-child strong{display:block;font-size:12px}.stock-row-name small,.stock-row>div:last-child small{display:block;color:#7e8997;font:10px var(--font-mono);margin-top:3px}.stock-row>div:last-child{text-align:right}.up{color:#e4766e!important}.down{color:#67b8b2!important}.sidebar-foot{display:flex;gap:7px;align-items:flex-start;color:#758190;font-size:10px;line-height:1.5;border-top:1px solid rgba(255,255,255,.08);padding:15px 7px;margin-top:14px}.terminal-main{min-width:0;padding:27px clamp(20px,4vw,58px) 60px;max-width:1480px}.market-strip{display:flex;justify-content:space-between;align-items:end;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,.1)}.market-strip h2{font:700 20px var(--font-serif);margin:4px 0 0}.gainer-list{display:flex;gap:12px}.gainer-list button{border:1px solid rgba(255,255,255,.1);background:#101720;border-radius:6px;color:#bec6d0;padding:8px 10px;display:flex;gap:14px;font-size:11px;cursor:pointer}.instrument-head{display:flex;justify-content:space-between;gap:30px;padding:31px 0 20px}.instrument-path{display:flex;align-items:center;gap:5px;color:#8994a2;font-size:11px}.instrument-head h2{font:700 37px var(--font-serif);letter-spacing:.03em;margin:7px 0 5px}.instrument-head h2 span{margin-left:10px;color:#8e98a5;font:12px var(--font-mono)}.instrument-head p{color:#8c96a2;font-size:12px;margin:0}.quote-block{text-align:right}.quote-price{font:500 48px var(--font-mono);letter-spacing:-.06em;line-height:.9}.quote-price small{font:11px var(--font-mono);color:#d3ad65;letter-spacing:0}.quote-change{display:inline-flex;align-items:center;gap:4px;margin-top:9px;font:12px var(--font-mono);padding:5px 7px;border-radius:4px;background:rgba(255,255,255,.05)}.quote-time{display:flex;justify-content:end;align-items:center;gap:5px;color:#7c8795;font:10px var(--font-mono);margin-top:9px}.quote-metrics{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid rgba(255,255,255,.1);border-radius:9px;overflow:hidden;background:#10151d}.quote-metrics>div{padding:14px 16px;border-right:1px solid rgba(255,255,255,.09)}.quote-metrics>div:last-child{border-right:0}.quote-metrics span{display:block;color:#87929f;font-size:10px;margin-bottom:7px}.quote-metrics strong{font:500 16px var(--font-mono);letter-spacing:-.05em}.detail-grid{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(260px,.85fr);gap:16px;margin-top:18px}.terminal-panel{border:1px solid rgba(255,255,255,.1);border-radius:10px;background:linear-gradient(140deg,rgba(255,255,255,.045),rgba(255,255,255,.014));padding:20px}.panel-heading{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.panel-heading h3{font:700 20px var(--font-serif);margin:5px 0 0}.panel-heading>svg{color:#d0a85f}.live-tag{border:1px solid rgba(98,177,172,.4);color:#7bbeb9;border-radius:4px;padding:4px 6px;font:10px var(--font-mono)}.terminal-chart{height:340px;margin-top:14px}.chart-caption{display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.08);padding-top:12px;color:#8793a0;font-size:10px}.chart-caption span,.chart-caption a{display:flex;gap:5px;align-items:center}.chart-caption a,.source-card a,.flow-card a{color:#dfbf7b;text-decoration:none}.ma-row{display:grid;grid-template-columns:1fr auto;gap:9px 16px;border-top:1px solid rgba(255,255,255,.09);border-bottom:1px solid rgba(255,255,255,.09);margin-top:17px;padding:14px 0;font-size:11px}.ma-row span{color:#87929f}.ma-row strong{font:500 14px var(--font-mono)}.support-list>div{padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)}.support-list span{color:#8e98a5;font-size:10px;display:block}.support-list strong{display:block;font:500 17px var(--font-mono);margin:6px 0}.support-list p{color:#8e98a5;font-size:10px;line-height:1.55;margin:0}.panel-disclaimer{display:flex;gap:5px;color:#a98881;font-size:10px;line-height:1.5;margin:14px 0 0}.bottom-grid{display:grid;grid-template-columns:1.2fr 1fr .8fr;gap:16px;margin-top:16px}.coverage-card>p,.flow-card>p{color:#9aa4af;font-size:11px;line-height:1.7;margin:18px 0 12px}.coverage-card ul{list-style:none;margin:0;padding:0}.coverage-card li{display:flex;gap:7px;align-items:flex-start;color:#c3cad2;font-size:11px;padding:7px 0;border-top:1px solid rgba(255,255,255,.08)}.coverage-card li svg{color:#d2ac65;flex:none;margin-top:1px}.flow-stat{display:grid;grid-template-columns:1fr auto;gap:4px;margin-top:18px}.flow-stat span,.flow-stat small{color:#87929e;font-size:10px}.flow-stat strong{font:500 21px var(--font-mono);text-align:right;letter-spacing:-.05em}.flow-stat small{text-align:right}.source-card{display:flex;flex-direction:column}.source-card a{display:flex;gap:5px;align-items:center;border-top:1px solid rgba(255,255,255,.08);padding:12px 0;font-size:11px}.terminal-footer{display:flex;justify-content:space-between;gap:30px;align-items:center;border-top:1px solid rgba(255,255,255,.1);padding:21px 28px;background:#0c1118;color:#e2c174;font:600 12px var(--font-serif)}.terminal-footer small{max-width:690px;color:#87929f;font:10px var(--font-sans);line-height:1.6}.terminal-loading{height:100vh;display:flex;gap:10px;align-items:center;justify-content:center;background:#0a0e14;color:#b5bfca;font-size:13px}
+      @media(max-width:1050px){.terminal-layout{grid-template-columns:230px minmax(0,1fr)}.quote-metrics{grid-template-columns:repeat(3,1fr)}.quote-metrics>div:nth-child(3){border-right:0}.detail-grid,.bottom-grid{grid-template-columns:1fr}.support-card{display:grid;grid-template-columns:1fr 1fr;gap:15px}.support-card .panel-heading,.support-card .ma-row,.support-card .panel-disclaimer{grid-column:1/-1}.support-list{display:contents}.terminal-footer{align-items:flex-start;flex-direction:column;gap:8px}}@media(max-width:760px){.terminal-header{height:60px;padding:0 14px}.terminal-brand h1{font-size:14px}.market-status{display:none}.terminal-refresh{font-size:10px;padding:7px}.terminal-layout{display:block}.terminal-sidebar{border-right:0;border-bottom:1px solid rgba(255,255,255,.1);padding:13px}.stock-list{display:grid;grid-template-columns:1fr 1fr;max-height:200px;overflow:auto}.sidebar-foot{display:none}.terminal-main{padding:20px 14px 38px}.market-strip{align-items:flex-start;gap:12px;flex-direction:column}.gainer-list{width:100%;overflow:auto}.gainer-list button{white-space:nowrap}.instrument-head{padding:24px 0 17px;align-items:flex-start;flex-direction:column}.instrument-head h2{font-size:30px}.quote-block{text-align:left}.quote-time{justify-content:start}.quote-metrics{grid-template-columns:1fr 1fr}.quote-metrics>div{border-bottom:1px solid rgba(255,255,255,.09)}.quote-metrics>div:nth-child(2n){border-right:0}.quote-metrics>div:last-child{grid-column:1/-1}.detail-grid{grid-template-columns:1fr}.terminal-chart{height:265px}.support-card{display:block}.support-card .ma-row{margin-top:17px}.support-list{display:block}.terminal-footer{padding:18px 14px}.terminal-footer small{font-size:9px}}
+    `}</style>
+  </div>;
 }
