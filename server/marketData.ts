@@ -35,6 +35,9 @@ export type FundFlowSummary = { asOf: string | null; latestMainNet: number | nul
 export type TechnicalSummary = { ma5: number | null; ma10: number | null; ma20: number | null; supports: Array<{ label: string; range: string; description: string }> };
 export type IndexSnapshot = { key: "shanghai" | "chinext" | "star50"; name: string; symbol: string; price: number; change: number; changePct: number; sourceUrl: string };
 export type NorthboundDisclosure = { intradayStatus: "not-disclosed"; display: string; explanation: string; sourceUrl: string };
+export type ResearchEvent = { title: string; date: string | null; type: "定期报告" | "业绩预告" | "披露监测"; description: string; sourceUrl: string };
+export type ScoreFactor = { label: string; score: number; max: number; status: string };
+export type ResearchScore = { total: number; label: "观察较强" | "中性观察" | "风险观察"; factors: ScoreFactor[]; definition: string };
 
 export const STOCK_POOL: StockMeta[] = [
   { id: "china-satellite", code: "600118", market: "sh", name: "中国卫星", formalName: "中国东方红卫星股份有限公司", sector: "商业航天", sectorKey: "aerospace", events: [{ date: "2026-04-22", label: "一季报" }, { date: "2026-07-13", label: "业绩预告" }] },
@@ -212,7 +215,7 @@ export async function getMarketData(stockId: StockId) {
   const flow = flowResult.status === "fulfilled" && flowResult.value.ok
     ? parseFundFlow(await flowResult.value.json(), flowUrl)
     : { asOf: null, latestMainNet: null, rolling5: null, rolling10: null, breakdown: emptyBreakdown, sourceUrl: flowUrl };
-  return { stock, ...quote, flow };
+  return { stock, ...quote, flow, score: calculateResearchScore(quote.snapshot, quote.technical, flow, getResearchProfile(stockId)) };
 }
 
 export async function getMarketOverview() {
@@ -222,13 +225,27 @@ export async function getMarketOverview() {
     : { stock: STOCK_POOL[index], snapshot: null, error: result.reason instanceof Error ? result.reason.message : "行情暂不可用" });
 }
 
-type ResearchProfile = { coverage: "deep" | "basic"; watchpoints: string[]; sources: Array<{ label: string; url: string }> };
+export type ResearchProfile = { coverage: "deep" | "basic"; watchpoints: string[]; sources: Array<{ label: string; url: string }>; events: ResearchEvent[] };
 const RESEARCH_PROFILES: Record<StockId, ResearchProfile> = {
-  "china-satellite": { coverage: "deep", watchpoints: ["重点卫星型号验收与收入确认", "正式中报的扣非利润、毛利率与经营现金流", "商业航天板块风险偏好"], sources: [{ label: "2025 年年度报告", url: "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=600118&id=12038644" }, { label: "2026 年半年度业绩预告", url: "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=600118&id=12441769" }] },
-  "torch-electronics": { coverage: "deep", watchpoints: ["主力净额是否延续为正", "48.3–49.5 元近端支撑带", "均线重叠带与成交量确认"], sources: [{ label: "2025 年年度报告", url: "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=603678&id=12039732" }] },
-  naura: { coverage: "basic", watchpoints: ["基础行情与资金流已接入", "深度财务与催化研究待补充"], sources: [] },
-  "zhongji-innolight": { coverage: "basic", watchpoints: ["基础行情与资金流已接入", "深度财务与催化研究待补充"], sources: [] },
-  catl: { coverage: "basic", watchpoints: ["基础行情与资金流已接入", "深度财务与催化研究待补充"], sources: [] },
+  "china-satellite": { coverage: "deep", watchpoints: ["重点卫星型号验收与收入确认", "正式中报的扣非利润、毛利率与经营现金流", "商业航天板块风险偏好"], sources: [{ label: "2025 年年度报告", url: "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=600118&id=12038644" }, { label: "2026 年半年度业绩预告", url: "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=600118&id=12441769" }], events: [{ title: "2026 年半年度业绩预告", date: "2026-07-13", type: "业绩预告", description: "已纳入研究卡的公开业绩预告；以原始公告为准。", sourceUrl: "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=600118&id=12441769" }, { title: "定期报告与项目验收监测", date: null, type: "披露监测", description: "持续跟踪交易所/公司原始披露，不将媒体转述视为最终事实。", sourceUrl: "https://www.sse.com.cn/assortment/stock/list/info/summary/index.shtml?COMPANY_CODE=600118" }] },
+  "torch-electronics": { coverage: "deep", watchpoints: ["主力净额是否延续为正", "48.3–49.5 元近端支撑带", "均线重叠带与成交量确认"], sources: [{ label: "2025 年年度报告", url: "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=603678&id=12039732" }], events: [{ title: "定期报告与军工电子景气监测", date: null, type: "披露监测", description: "以公司和交易所后续公告验证业绩、订单及经营事项。", sourceUrl: "https://www.sse.com.cn/assortment/stock/list/info/summary/index.shtml?COMPANY_CODE=603678" }] },
+  naura: { coverage: "basic", watchpoints: ["基础行情与资金流已接入", "深度财务与催化研究待补充"], sources: [], events: [{ title: "公开披露监测", date: null, type: "披露监测", description: "基础模式仅提供行情与资金结构；深度事件需接入可核验披露。", sourceUrl: "https://www.szse.cn/disclosure/listed/notice/index.html" }] },
+  "zhongji-innolight": { coverage: "basic", watchpoints: ["基础行情与资金流已接入", "深度财务与催化研究待补充"], sources: [], events: [{ title: "公开披露监测", date: null, type: "披露监测", description: "基础模式仅提供行情与资金结构；深度事件需接入可核验披露。", sourceUrl: "https://www.szse.cn/disclosure/listed/notice/index.html" }] },
+  catl: { coverage: "basic", watchpoints: ["基础行情与资金流已接入", "深度财务与催化研究待补充"], sources: [], events: [{ title: "公开披露监测", date: null, type: "披露监测", description: "基础模式仅提供行情与资金结构；深度事件需接入可核验披露。", sourceUrl: "https://www.szse.cn/disclosure/listed/notice/index.html" }] },
 };
 
 export const getResearchProfile = (stockId: StockId) => RESEARCH_PROFILES[stockId];
+
+export function calculateResearchScore(snapshot: MarketSnapshot, technical: TechnicalSummary, flow: FundFlowSummary, profile: ResearchProfile): ResearchScore {
+  const factors: ScoreFactor[] = [
+    { label: "价格相对 MA20", score: technical.ma20 !== null && snapshot.price >= technical.ma20 ? 20 : 5, max: 20, status: technical.ma20 !== null && snapshot.price >= technical.ma20 ? "价格不低于 MA20" : "价格低于 MA20 或均线不可用" },
+    { label: "短期趋势", score: technical.ma5 !== null && technical.ma10 !== null && technical.ma5 >= technical.ma10 ? 15 : 4, max: 15, status: technical.ma5 !== null && technical.ma10 !== null && technical.ma5 >= technical.ma10 ? "MA5 不低于 MA10" : "MA5 低于 MA10 或均线不可用" },
+    { label: "5 日主力结构", score: (flow.rolling5 ?? 0) >= 0 ? 20 : 5, max: 20, status: (flow.rolling5 ?? 0) >= 0 ? "滚动主力净额非负" : "滚动主力净额为负" },
+    { label: "最近完整日主力", score: (flow.latestMainNet ?? 0) >= 0 ? 10 : 2, max: 10, status: (flow.latestMainNet ?? 0) >= 0 ? "最近完整日主力净额非负" : "最近完整日主力净额为负" },
+    { label: "披露与研究覆盖", score: profile.coverage === "deep" ? 10 : 4, max: 10, status: profile.coverage === "deep" ? "已有可追溯研究来源" : "基础公开覆盖" },
+    { label: "事件可追溯性", score: profile.events.length > 0 ? 10 : 0, max: 10, status: profile.events.length > 0 ? "存在公开披露监测项" : "尚未配置事件来源" },
+    { label: "数据完整性", score: snapshot.dataStatus === "live" && flow.asOf ? 15 : 5, max: 15, status: snapshot.dataStatus === "live" && flow.asOf ? "行情与完整日资金数据可用" : "部分公开字段暂不可用" },
+  ];
+  const total = factors.reduce((sum, factor) => sum + factor.score, 0);
+  return { total, label: total >= 70 ? "观察较强" : total >= 45 ? "中性观察" : "风险观察", factors, definition: "规则评分仅汇总趋势、公开资金结构、披露覆盖与数据完整性，不预测收益或构成买卖建议。" };
+}

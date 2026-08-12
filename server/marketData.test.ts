@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { getChartMarkers, getNorthboundDisclosure, getTechnicalSummary, parseDailyBars, parseFundFlow, parseIndexQuotes, parseQuote, STOCK_POOL } from "./marketData";
-import { getIndexAvailability } from "../client/src/lib/marketContextState";
+import { calculateResearchScore, getChartMarkers, getNorthboundDisclosure, getResearchProfile, getTechnicalSummary, parseDailyBars, parseFundFlow, parseIndexQuotes, parseQuote, STOCK_POOL } from "./marketData";
+import { getIndexAvailability, getTerminalMarketState } from "../client/src/lib/marketContextState";
+import { buildSectorSummaries, getEventStatus, getPublicModuleState } from "../client/src/lib/terminalResearch";
 
 const satellite = STOCK_POOL[0];
 
@@ -60,6 +61,46 @@ describe("multi-stock market data", () => {
     expect(getIndexAvailability([{ key: "shanghai" }])).toBe("available");
     expect(emptyFlow).toMatchObject({ asOf: null, latestMainNet: null, rolling5: null, rolling10: null, breakdown: { main: null, superLarge: null, large: null, medium: null, small: null } });
     expect(northbound).toMatchObject({ intradayStatus: "not-disclosed", display: "盘中净流入未公开披露" });
+  });
+
+  it("builds a transparent research score from stated public-data rules", () => {
+    const score = calculateResearchScore(
+      { name: "测试", symbol: "000001.SZ", price: 11, previousClose: 10, change: 1, changePct: 10, open: 10, high: 11, low: 10, volume: 1, turnover: 1, updatedAt: "2026-08-12T00:00:00+08:00", dataStatus: "live", sourceUrl: "https://example.test" },
+      { ma5: 11, ma10: 10, ma20: 9, supports: [] },
+      { asOf: "2026-08-11", latestMainNet: 1, rolling5: 1, rolling10: 1, breakdown: { main: 1, superLarge: 1, large: 0, medium: 0, small: 0 }, sourceUrl: "https://example.test" },
+      getResearchProfile("china-satellite"),
+    );
+
+    expect(score.total).toBe(100);
+    expect(score.label).toBe("观察较强");
+    expect(score.definition).toContain("不预测收益");
+  });
+
+  it("ranks only the configured stock-pool sectors and labels unavailable sector quotes", () => {
+    const sectors = buildSectorSummaries([
+      { stock: { sector: "商业航天", sectorKey: "aerospace" }, snapshot: { changePct: 1.5 } },
+      { stock: { sector: "军工电子", sectorKey: "defense-electronics" }, snapshot: null },
+    ]);
+
+    expect(sectors[0]).toMatchObject({ sector: "商业航天", changePct: 1.5, coveredStocks: 1, availableQuotes: 1 });
+    expect(sectors[1]).toMatchObject({ sector: "军工电子", changePct: null, coveredStocks: 1, availableQuotes: 0 });
+  });
+
+  it("computes disclosed, upcoming and monitoring event states without inferring event facts", () => {
+    expect(getEventStatus("2026-07-13", "2026-08-12")).toEqual({ kind: "disclosed", label: "已披露" });
+    expect(getEventStatus("2026-10-28", "2026-08-12")).toEqual({ kind: "upcoming", label: "待披露" });
+    expect(getEventStatus(null, "2026-08-12")).toEqual({ kind: "monitoring", label: "持续监测" });
+  });
+
+  it("uses explicit unavailable states for unconnected chips and missing primary disclosures", () => {
+    expect(getPublicModuleState("chips", false)).toMatchObject({ kind: "unavailable", title: "公开源未连接" });
+    expect(getPublicModuleState("disclosures", false)).toMatchObject({ kind: "unavailable", title: "原始披露待补充" });
+  });
+
+  it("moves from loading to a retryable unavailable state when a public quote request fails", () => {
+    expect(getTerminalMarketState(false, false, true)).toBe("loading");
+    expect(getTerminalMarketState(true, false, false)).toBe("unavailable");
+    expect(getTerminalMarketState(true, true, false)).toBe("ready");
   });
 
   it("parses quote payload using the selected stock configuration", () => {
