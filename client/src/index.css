@@ -1,4 +1,40 @@
 @import "tailwindcss";
+
+@theme inline {
+  --font-sans: "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Noto Serif SC", ui-serif, Georgia, serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+}
+
+:root {
+  --ink: #e9e3d5;
+  --muted: #9ca3ad;
+  --canvas: #0d1015;
+  --panel: #151a21;
+  --panel-strong: #1a2029;
+  --line: rgba(225, 233, 239, 0.12);
+  --gold: #c9a362;
+  --gold-soft: #f0d19a;
+  --signal: #e56c61;
+  --positive: #d75b54;
+  --negative: #5ba6a3;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; background: var(--canvas); }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+button, a { -webkit-tap-highlight-color: transparent; }
+
+::selection { background: rgba(201, 163, 98, 0.3); }
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
