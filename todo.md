@@ -46,7 +46,7 @@
 - [x] 准备并验证 Cloudflare Pages 或 Workers 的兼容部署配置，保留现有公开行情服务能力。
 - [ ] 在用户确认前不改变任何生产 DNS；创建并核验 Cloudflare 预览部署。
 - [ ] 在用户确认具体域名与 DNS 记录后接入生产域名，并交付访问地址与运维说明。
-- [ ] 通过 Cloudflare 控制台 GitHub OAuth 连接 yanyong666/china-satellite-tracker，避免使用 API Token。
+- [x] 通过 Cloudflare 控制台 GitHub OAuth 连接 yanyong666/china-satellite-tracker，避免使用 API Token。
 - [ ] 配置 Cloudflare Git 项目的构建命令、输出目录与 Worker 入口，并创建无 Token 预览部署。
 - [ ] 验证 Cloudflare 预览首页、SPA 回退与 tracker tRPC API；确认后再处理自定义域名与 DNS。
 - [ ] 诊断并修复 Cloudflare Pages 项目 china-satellite-tracker.pages.dev 的连接关闭问题。

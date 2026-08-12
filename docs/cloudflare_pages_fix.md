@@ -26,3 +26,7 @@
 ## 三、 推荐的验证方式
 
 在 Cloudflare 控制台更新构建输出目录为 `dist/public` 并重新触发部署后，访问生成的 `*.pages.dev` 域名即可正常加载“华夏股票研究终端”。如果需要最稳定的生产环境，当前 Manus 托管地址始终保持可用：`https://chinasattrk-n6wbuzkr.manus.space`。
+
+## Git 自动构建触发记录
+
+Cloudflare Worker `china-satellite-tracker` 已连接 GitHub 仓库 `yanyong666/china-satellite-tracker`，生产分支为 `main`。构建命令为 `pnpm build`，部署命令为 `npx wrangler deploy`；Worker 的静态资产目录和入口由仓库根目录的 `wrangler.jsonc` 管理。首次连接后需要 `main` 分支产生一次新提交，Cloudflare 才会开始第一次构建。
