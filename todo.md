@@ -51,5 +51,7 @@
 - [ ] 验证 Cloudflare 预览首页、SPA 回退与 tracker tRPC API；确认后再处理自定义域名与 DNS。
 - [ ] 诊断并修复 Cloudflare Pages 项目 china-satellite-tracker.pages.dev 的连接关闭问题。
 - [x] 将 Cloudflare Worker 与 wrangler.jsonc 名称同步改为 stock-terminal，并验证 stock-terminal.yanyong-email.workers.dev。
-- [ ] 将 wrangler.jsonc 的 name: stock-terminal 提交并推送到 GitHub main，确保 Cloudflare Git 自动部署与控制台重命名保持一致。
-- [ ] 打开并核验 https://stock-terminal.yanyong-email.workers.dev 首页真实可访问。
+- [x] 将 wrangler.jsonc 的 name: stock-terminal 提交并推送到 GitHub main，确保 Cloudflare Git 自动部署与控制台重命名保持一致。
+- [x] 打开并核验 https://stock-terminal.yanyong-email.workers.dev 首页真实可访问。
+- [ ] 等待 Cloudflare 拉取 GitHub main 上的 wrangler.jsonc 名称同步提交，核验最新构建已基于 stock-terminal 完成。
+- [ ] 实际打开并核验 https://stock-terminal.yanyong-email.workers.dev 首页返回成功。
