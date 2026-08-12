@@ -47,11 +47,18 @@
 - [ ] 在用户确认前不改变任何生产 DNS；创建并核验 Cloudflare 预览部署。
 - [ ] 在用户确认具体域名与 DNS 记录后接入生产域名，并交付访问地址与运维说明。
 - [x] 通过 Cloudflare 控制台 GitHub OAuth 连接 yanyong666/china-satellite-tracker，避免使用 API Token。
-- [ ] 配置 Cloudflare Git 项目的构建命令、输出目录与 Worker 入口，并创建无 Token 预览部署。
-- [ ] 验证 Cloudflare 预览首页、SPA 回退与 tracker tRPC API；确认后再处理自定义域名与 DNS。
-- [ ] 诊断并修复 Cloudflare Pages 项目 china-satellite-tracker.pages.dev 的连接关闭问题。
+- [x] 配置 Cloudflare Git 项目的构建命令、输出目录与 Worker 入口，并创建无 Token 预览部署。
+- [x] 验证 Cloudflare Worker 首页与 tracker 公开行情数据加载；自定义域名等待 EU.org 委派后再处理。
+- [x] 停用 Cloudflare Pages 作为部署路径，改由 stock-terminal Worker 承载终端，避免 Pages 项目连接关闭问题。
 - [x] 将 Cloudflare Worker 与 wrangler.jsonc 名称同步改为 stock-terminal，并验证 stock-terminal.yanyong-email.workers.dev。
 - [x] 将 wrangler.jsonc 的 name: stock-terminal 提交并推送到 GitHub main，确保 Cloudflare Git 自动部署与控制台重命名保持一致。
 - [x] 打开并核验 https://stock-terminal.yanyong-email.workers.dev 首页真实可访问。
 - [ ] 等待 Cloudflare 拉取 GitHub main 上的 wrangler.jsonc 名称同步提交，核验最新构建已基于 stock-terminal 完成。
-- [ ] 实际打开并核验 https://stock-terminal.yanyong-email.workers.dev 首页返回成功。
+- [x] 实际打开并核验 https://stock-terminal.yanyong-email.workers.dev 首页返回成功且公开行情终端完成加载。
+- [ ] 收集用户准备好的自定义域名或子域名，并在 Cloudflare 中将其绑定至 stock-terminal Worker。
+- [x] 在 Cloudflare 创建 china-finance.eu.org Free DNS Zone，记录 augustus.ns.cloudflare.com 与 deb.ns.cloudflare.com。
+- [x] 向 EU.org 提交 china-finance.eu.org 免费域名申请（引用编号：20260812124602-arf-40032），并通过 Nameserver、SOA 与 NS 校验。
+- [ ] 等待 EU.org 审核与 Nameserver 委派生效，然后将 china-finance.eu.org 作为自定义域绑定到 stock-terminal Worker。
+- [x] 实际请求并核验 Cloudflare Worker 的 tracker.universe、overview、market、research 公开接口返回成功，并记录返回证据。
+- [x] 实际访问一个非根前端路由，核验 Worker 的 SPA 回退结果。
+- [x] 在 Cloudflare 控制台确认 china-satellite-tracker.pages.dev 已停用或不再作为生产入口，或补充其连接关闭问题的独立处置证据（当前地址返回 HTTP 404）。
