@@ -27,18 +27,23 @@ try {
   await page.waitForTimeout(15_000);
   const bodyText = await page.locator("body").innerText();
   const resourceEntries = await page.evaluate(() => performance.getEntriesByType("resource").map(entry => entry.name));
+  const terminalLoaded = bodyText.includes("重点股票池") && bodyText.includes("中国卫星");
+  const publicApiLoaded = apiResponses.some(response => response.status === 200);
   await page.screenshot({ path: "/home/ubuntu/webdev-static-assets/member-verification/production-terminal-public.png", fullPage: true });
 
   console.log(JSON.stringify({
     url: page.url(),
     bodyText: bodyText.slice(0, 1200),
-    terminalLoaded: bodyText.includes("重点股票池") && bodyText.includes("中国卫星"),
+    terminalLoaded,
     apiResponses,
     failedResponses,
     requestFailures,
     resourceEntries: resourceEntries.filter(url => url.includes("api") || url.includes("trpc")),
     consoleEntries,
   }, null, 2));
+  if (!terminalLoaded || !publicApiLoaded) {
+    throw new Error("公开研究终端未加载数据页，或未成功请求 /api/trpc。");
+  }
   await context.close();
 } finally {
   await browser.close();
