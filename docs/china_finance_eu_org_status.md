@@ -55,3 +55,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 在终端导航改造发布后的再次交叉查询中，Cloudflare DNS over HTTPS 与 Google Public DNS 的 NS 响应仍同为 `Status: 3`（NXDOMAIN），且均只返回父区 `eu.org` 的 SOA，序列号为 `2026081316`。这表示父区已有后续更新，但 `china-finance.eu.org` 仍未公开委派至 Cloudflare Nameserver；每日自动核验保持启用，当前继续使用 `stock-terminal.yanyong-email.workers.dev`。
 
 随后对该域 SOA 的单独查询仍返回 `Status: 3`（NXDOMAIN），父区 `eu.org` SOA 序列号更新为 `2026081317`，但响应未出现 `china-finance.eu.org` 的权威记录。该变化不足以证明委派完成，继续等待每日自动核验确认 NS 记录实际出现。
+
+同一序列号下的 Cloudflare DNS over HTTPS 与 Google Public DNS NS 查询均仍返回 `Status: 3`，且均未提供该子域 NS Answer。这再次排除了单一递归缓存造成的假阴性。
