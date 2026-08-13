@@ -43,3 +43,7 @@
 ## 公共 DNS 与注册记录核验
 
 在 2026-08-13 的查询中，Cloudflare DNS over HTTPS 与 Google Public DNS 对 `china-finance.eu.org` 的 NS 查询均返回 `Status: 3`（NXDOMAIN），并在权威区段中仅返回 `eu.org` 的 SOA；这表示该子域的委派记录尚未在公共递归解析器中可见。RDAP 对该三级域的请求没有返回可用域名对象；直接 WHOIS 服务查询也未返回可解析的域名条目。该阶段与 Cloudflare 控制台“等待注册机构传播”状态一致，不能据此认为域名已完成公开委派。
+
+Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-terminal.yanyong-email.workers.dev/` 根路径现显示“华夏股票研究终端”品牌标题页，且其主入口指向 `/terminal`。这确认 `stock-terminal` Worker 已基于包含品牌首页的最新代码运行。
+
+在标题页部署完成后的复查中，公共 NS 查询仍返回 `Status: 3`（NXDOMAIN）；父区域 `eu.org` 的 SOA 序列号已从 `2026081305` 更新为 `2026081307`，但该响应中仍未包含 `china-finance.eu.org` 的 NS 记录。因此，当前可确认父区域正在更新，但尚不能确认已完成该子域到 Cloudflare 的公开委派。

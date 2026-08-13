@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { SITE_ROUTES } from "./lib/siteRoutes";
 import Home from "./pages/Home";
 import Landing from "./pages/Landing";
+import MemberCenter from "./pages/MemberCenter";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -14,6 +15,7 @@ function Router() {
     <Switch>
       <Route path={SITE_ROUTES.home} component={Landing} />
       <Route path={SITE_ROUTES.terminal} component={Home} />
+      <Route path={SITE_ROUTES.member} component={MemberCenter} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

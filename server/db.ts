@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, userSavedStocks, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,33 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+async function requireDb() {
+  const db = await getDb();
+  if (!db) throw new Error("会员数据服务暂不可用，请稍后重试");
+  return db;
+}
+
+export async function listUserSavedStocks(userId: number) {
+  const db = await requireDb();
+  return db.select({ stockId: userSavedStocks.stockId, createdAt: userSavedStocks.createdAt })
+    .from(userSavedStocks)
+    .where(eq(userSavedStocks.userId, userId))
+    .orderBy(userSavedStocks.createdAt);
+}
+
+export async function saveUserStock(userId: number, stockId: string) {
+  const db = await requireDb();
+  await db.insert(userSavedStocks).values({ userId, stockId }).onDuplicateKeyUpdate({
+    set: { stockId },
+  });
+  return { stockId, saved: true as const };
+}
+
+export async function removeUserStock(userId: number, stockId: string) {
+  const db = await requireDb();
+  const result = await db.delete(userSavedStocks).where(and(
+    eq(userSavedStocks.userId, userId),
+    eq(userSavedStocks.stockId, stockId),
+  ));
+  return { stockId, removed: result[0].affectedRows > 0 };
+}

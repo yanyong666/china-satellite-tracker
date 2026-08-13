@@ -8,5 +8,12 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"],
     "not_found_handling": "single-page-application"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "MEMBER_DB",
+      "database_name": "stock-terminal-members",
+      "database_id": "80f1a88c-850c-4393-a93b-960729d53058"
+    }
+  ]
 }
