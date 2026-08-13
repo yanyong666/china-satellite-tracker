@@ -98,3 +98,5 @@
 - [x] 在 D1 成功执行 0002_self_auth.sql，新增密码哈希、随机盐、会话与登录限流表结构，未写入会员数据。
 - [ ] 将会员 tRPC 接口迁移到 /member/api 独立路径，并为该路径接入 Cloudflare Access，保持 /api/trpc 公开行情接口不受登录墙影响。
 - [ ] 为前端增加 Cloudflare Access 专用 tRPC 客户端与会员中心路由，移除会员页对 Manus OAuth 会话的依赖。
+- [ ] 等待并核验 Cloudflare Git 已部署 148ef5f7 的无卡会员构建，使 stock-terminal Worker 的 /member 路由与 /member/api 可用。
+- [ ] 将 /member/api/* 加入 Worker 的 run_worker_first 路由，避免同域会员 API 被 SPA fallback 返回 HTML。
