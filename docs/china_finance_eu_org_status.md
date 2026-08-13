@@ -57,3 +57,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 随后对该域 SOA 的单独查询仍返回 `Status: 3`（NXDOMAIN），父区 `eu.org` SOA 序列号更新为 `2026081317`，但响应未出现 `china-finance.eu.org` 的权威记录。该变化不足以证明委派完成，继续等待每日自动核验确认 NS 记录实际出现。
 
 同一序列号下的 Cloudflare DNS over HTTPS 与 Google Public DNS NS 查询均仍返回 `Status: 3`，且均未提供该子域 NS Answer。这再次排除了单一递归缓存造成的假阴性。
+
+随后使用已连接的浏览器访问 Cloudflare Dashboard 账户首页，页面两次均显示“Dashboard is temporarily unavailable”，因此当时无法通过控制台读取 Zone 激活状态或进行绑定操作。公共 DNS 仍为未委派状态，故该控制台暂时不可用不阻塞当前的安全等待策略；不应在未恢复前重复提交配置修改。
