@@ -1,6 +1,8 @@
 import { chromium } from "playwright";
 
-const origin = "https://stock-terminal.yanyong-email.workers.dev";
+const origin = (process.env.TERMINAL_ORIGIN ?? "https://stock-terminal.yanyong-email.workers.dev").replace(/\/$/, "");
+const mobile = process.env.TERMINAL_VIEWPORT === "mobile";
+const viewport = mobile ? { width: 375, height: 812 } : { width: 1280, height: 900 };
 const browser = await chromium.launch({
   headless: true,
   executablePath: "/usr/bin/chromium",
@@ -13,7 +15,7 @@ const apiResponses = [];
 const failedResponses = [];
 
 try {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const context = await browser.newContext({ viewport, isMobile: mobile });
   const page = await context.newPage();
   page.on("console", message => consoleEntries.push({ type: message.type(), text: message.text() }));
   page.on("pageerror", error => consoleEntries.push({ type: "pageerror", text: error.message }));
@@ -27,22 +29,31 @@ try {
   await page.waitForTimeout(15_000);
   const bodyText = await page.locator("body").innerText();
   const resourceEntries = await page.evaluate(() => performance.getEntriesByType("resource").map(entry => entry.name));
-  const terminalLoaded = bodyText.includes("重点股票池") && bodyText.includes("中国卫星");
+  const terminalLoaded = (await page.getByRole("tab").count()) > 0 && bodyText.includes("中国卫星");
   const publicApiLoaded = apiResponses.some(response => response.status === 200);
-  await page.screenshot({ path: "/home/ubuntu/webdev-static-assets/member-verification/production-terminal-public.png", fullPage: true });
+  await page.getByRole("tab", { name: /火炬电子/ }).click();
+  await page.getByRole("heading", { name: /火炬电子/ }).waitFor();
+  const tabSwitchWorked = (await page.locator("body").innerText()).includes("火炬电子603678.SH");
+  await page.screenshot({ path: `/home/ubuntu/webdev-static-assets/member-verification/production-terminal-public-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
+  await page.getByRole("link", { name: "返回华夏股票研究终端首页" }).first().click();
+  await page.waitForURL(`${origin}/`);
+  const homeReturnWorked = (await page.locator("body").innerText()).includes("华夏股票研究终端");
 
   console.log(JSON.stringify({
     url: page.url(),
+    viewport,
     bodyText: bodyText.slice(0, 1200),
     terminalLoaded,
+    tabSwitchWorked,
+    homeReturnWorked,
     apiResponses,
     failedResponses,
     requestFailures,
     resourceEntries: resourceEntries.filter(url => url.includes("api") || url.includes("trpc")),
     consoleEntries,
   }, null, 2));
-  if (!terminalLoaded || !publicApiLoaded) {
-    throw new Error("公开研究终端未加载数据页，或未成功请求 /api/trpc。");
+  if (!terminalLoaded || !publicApiLoaded || !tabSwitchWorked || !homeReturnWorked) {
+    throw new Error("公开研究终端未完成数据加载、页签切换或返回首页导航验收。");
   }
   await context.close();
 } finally {

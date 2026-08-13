@@ -1,10 +1,10 @@
 import { trpc } from "@/lib/trpc";
 import { getIndexAvailability, getTerminalMarketState } from "@/lib/marketContextState";
 import { buildSectorSummaries, getEventStatus, getPublicModuleState } from "@/lib/terminalResearch";
-import { selectTerminalStock, sortOverviewByChange, type TerminalStockId } from "@/lib/terminalState";
+import { getTerminalResearchTabs, selectTerminalStock, sortOverviewByChange, type TerminalStockId } from "@/lib/terminalState";
 import { SITE_ROUTES } from "@/lib/siteRoutes";
 import { Area, AreaChart, CartesianGrid, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Bookmark, Building2, ChevronRight, CircleDot, Clock3, Database, ExternalLink, Filter, Landmark, Layers3, Loader2, Newspaper, Radar, RefreshCw, Search, ShieldAlert, TrendingUp, Users } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Bookmark, Building2, ChevronLeft, ChevronRight, CircleDot, Clock3, Database, ExternalLink, Filter, Landmark, Layers3, Loader2, Newspaper, Radar, RefreshCw, ShieldAlert, TrendingUp, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -23,8 +23,6 @@ function percentClass(value: number) { return value >= 0 ? "up" : "down"; }
 export default function Home() {
   const utils = trpc.useUtils();
   const [selectedId, setSelectedId] = useState<TerminalStockId>("china-satellite");
-  const [search, setSearch] = useState("");
-  const [sector, setSector] = useState("全部板块");
   const [refreshing, setRefreshing] = useState(false);
   const universeQuery = trpc.tracker.universe.useQuery();
   const overviewQuery = trpc.tracker.overview.useQuery(undefined, { refetchInterval: REFRESH_INTERVAL, refetchOnWindowFocus: true });
@@ -40,12 +38,7 @@ export default function Home() {
   const selectedStock = universe.find((item) => item.id === selectedId);
   const terminalMarketState = getTerminalMarketState(Boolean(selectedStock), Boolean(market), marketQuery.isLoading);
   const availableIds = useMemo(() => universe.map((item) => item.id as TerminalStockId), [universe]);
-  const sectors = ["全部板块", ...Array.from(new Set(universe.map((item) => item.sector)))];
-  const filtered = useMemo(() => sortOverviewByChange(overview.filter((item) => {
-    const matchesSector = sector === "全部板块" || item.stock.sector === sector;
-    const target = `${item.stock.name}${item.stock.code}${item.stock.sector}`.toLowerCase();
-    return matchesSector && target.includes(search.trim().toLowerCase());
-  })), [overview, search, sector]);
+  const researchTabs = useMemo(() => getTerminalResearchTabs(universe, selectedId), [universe, selectedId]);
   const gainers = useMemo(() => sortOverviewByChange(overview.filter((item) => item.snapshot)).slice(0, 3), [overview]);
   const sectorSummaries = useMemo(() => buildSectorSummaries(overview), [overview]);
   const chipState = getPublicModuleState("chips", false);
@@ -82,20 +75,25 @@ export default function Home() {
   const chartColor = sectorColors[selectedStock.sectorKey];
   return <div className="terminal-shell">
     <header className="terminal-header">
-      <a href={SITE_ROUTES.home} className="terminal-brand terminal-home-link" aria-label="返回华夏股票研究终端首页"><span className="brand-mark"><BarChart3 size={17} /></span><div><span className="overline">PUBLIC MARKET INTELLIGENCE</span><h1>华夏股票研究终端</h1></div></a>
+      <div className="terminal-header-left">
+        <a href={SITE_ROUTES.home} className="terminal-home-button" aria-label="返回华夏股票研究终端首页"><ChevronLeft size={15} /> 返回首页</a>
+        <a href={SITE_ROUTES.home} className="terminal-brand terminal-home-link" aria-label="返回华夏股票研究终端首页"><span className="brand-mark"><BarChart3 size={17} /></span><div><span className="overline">PUBLIC MARKET INTELLIGENCE</span><h1>华夏股票研究终端</h1></div></a>
+      </div>
       <div className="market-status"><Activity size={14} /><span>页面打开时刷新 · 60 秒更新</span></div>
       <button onClick={refreshNow} disabled={refreshing} className="terminal-refresh"><RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> {refreshing ? "更新中" : "刷新行情"}</button>
     </header>
+    <nav className="terminal-tabs" aria-label="股票研究页签">
+      <div className="terminal-tabs-label"><span>研究标的</span><small>{researchTabs.length} 只公开覆盖</small></div>
+      <div className="terminal-tabs-scroll" role="tablist" aria-label="股票页签">
+        {researchTabs.map((tab) => {
+          const snapshot = overview.find((item) => item.stock.id === tab.id)?.snapshot;
+          return <button key={tab.id} role="tab" aria-selected={tab.isActive} onClick={() => setSelectedId((current) => selectTerminalStock(current, tab.id as TerminalStockId, availableIds))} className={`terminal-tab ${tab.isActive ? "active" : ""}`}>
+            <span className="terminal-tab-name">{tab.name}</span><small>{tab.code} · {tab.sector}</small><b className={percentClass(snapshot?.changePct ?? 0)}>{snapshot ? `${snapshot.changePct >= 0 ? "+" : ""}${snapshot.changePct.toFixed(2)}%` : "—"}</b>
+          </button>;
+        })}
+      </div>
+    </nav>
     <div className="terminal-layout">
-      <aside className="terminal-sidebar">
-        <div className="sidebar-title"><span>重点股票池</span><small>{universe.length} 只标的</small></div>
-        <div className="search-box"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索名称或代码" /></div>
-        <div className="sector-chips">{sectors.map((item) => <button key={item} onClick={() => setSector(item)} className={sector === item ? "active" : ""}>{item}</button>)}</div>
-        <div className="stock-list">{filtered.map((item) => <button key={item.stock.id} onClick={() => setSelectedId((current) => selectTerminalStock(current, item.stock.id as TerminalStockId, availableIds))} className={`stock-row ${selectedId === item.stock.id ? "selected" : ""}`}>
-          <span className="sector-dot" style={{ background: sectorColors[item.stock.sectorKey] }}></span><div className="stock-row-name"><strong>{item.stock.name}</strong><small>{item.stock.code} · {item.stock.sector}</small></div><div className={percentClass(item.snapshot?.changePct ?? 0)}><strong>{item.snapshot ? item.snapshot.price.toFixed(2) : "—"}</strong><small>{item.snapshot ? `${item.snapshot.changePct >= 0 ? "+" : ""}${item.snapshot.changePct.toFixed(2)}%` : "来源暂不可用"}</small></div>
-        </button>)}</div>
-        <div className="sidebar-foot"><Database size={14} /> <span>公开行情与资金流<br/>以来源时间戳为准</span></div>
-      </aside>
       <main className="terminal-main">
         <section className="market-strip"><div><span className="overline">MARKET PULSE</span><h2>今日涨幅前列</h2></div><div className="gainer-list">{gainers.map((item) => <button key={item.stock.id} onClick={() => setSelectedId((current) => selectTerminalStock(current, item.stock.id as TerminalStockId, availableIds))}><span>{item.stock.name}</span><strong className={percentClass(item.snapshot?.changePct ?? 0)}>{item.snapshot ? `${item.snapshot.changePct >= 0 ? "+" : ""}${item.snapshot.changePct.toFixed(2)}%` : "—"}</strong></button>)}</div></section>
         <section className="instrument-head">
@@ -122,6 +120,9 @@ export default function Home() {
       .research-workbench{display:grid;grid-template-columns:1.2fr 1fr .85fr;gap:16px;margin-top:16px}.event-news-grid{display:grid;grid-template-columns:1.25fr .9fr;gap:16px;margin-top:16px}.research-workbench .terminal-panel,.event-news-grid .terminal-panel{min-width:0}.panel-note,.score-card>p,.chip-card>p,.news-card>p{color:#919ca9;font-size:11px;line-height:1.65;margin:14px 0}.sector-rankings{margin-top:12px}.sector-rankings>div{display:grid;grid-template-columns:24px 4px minmax(0,1fr) auto auto;align-items:center;gap:9px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)}.rank-no{font:10px var(--font-mono);color:#6e7b89}.sector-line{display:block;width:3px;height:19px;border-radius:4px}.sector-rankings strong{font-size:12px;white-space:nowrap}.sector-rankings small{font:10px var(--font-mono);color:#758190}.sector-rankings b{font:500 12px var(--font-mono);text-align:right}.score-main{display:grid;grid-template-columns:auto auto 1fr;align-items:end;gap:6px;margin:15px 0 12px}.score-main>strong{font:500 43px var(--font-mono);letter-spacing:-.08em;line-height:.75;color:#e8d4a1}.score-main>span{font:10px var(--font-mono);color:#8290a0;margin-bottom:4px}.score-main>b{justify-self:end;border:1px solid rgba(211,173,101,.4);border-radius:99px;padding:4px 7px;color:#dfc37f;font-size:10px}.score-factors{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.score-factors>div{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.08)}.score-factors span{color:#909ba8;font-size:10px}.score-factors strong{font:500 11px var(--font-mono)}.chip-card>strong{display:block;margin-top:17px;color:#d6b567;font:500 18px var(--font-serif)}.chip-card>a,.news-links a{display:flex;align-items:center;justify-content:space-between;gap:6px;color:#dfbf7b;text-decoration:none;font-size:11px;border-top:1px solid rgba(255,255,255,.08);padding:11px 0}.event-list{margin-top:14px}.event-list a{display:grid;grid-template-columns:70px minmax(0,1fr) auto;gap:12px;text-decoration:none;color:inherit;padding:12px 0;border-top:1px solid rgba(255,255,255,.08)}.event-list a>span{font:10px var(--font-mono);color:#d1ad67}.event-list strong{display:block;color:#e4e0d6;font-size:12px}.event-list p{color:#8d98a6;font-size:10px;line-height:1.55;margin:5px 0 0}.event-list small{align-self:start;color:#a9b1bd;font:9px var(--font-mono);padding:3px 5px;border:1px solid rgba(255,255,255,.12);border-radius:3px}.news-links{margin-top:12px}.news-links a:last-child{color:#8ec4bf}.research-workbench .panel-heading h3,.event-news-grid .panel-heading h3{font-size:18px}@media(max-width:1250px){.research-workbench{grid-template-columns:1fr 1fr}.chip-card{grid-column:1/-1}.event-news-grid{grid-template-columns:1fr}}@media(max-width:760px){.research-workbench,.event-news-grid{grid-template-columns:1fr}.chip-card{grid-column:auto}.score-factors{grid-template-columns:1fr}.sector-rankings>div{grid-template-columns:22px 4px minmax(0,1fr) auto}.sector-rankings small{display:none}.event-list a{grid-template-columns:62px minmax(0,1fr)}.event-list small{display:none}}
       .terminal-unavailable{min-height:100vh;background:radial-gradient(circle at 50% 20%,rgba(211,173,101,.1),transparent 35%),#0a0e14;color:#e9e4d8;padding:28px;font-family:var(--font-sans)}.unavailable-brand{display:flex;gap:9px;align-items:center;color:#d8b96e;font:600 14px var(--font-serif)}.unavailable-card{max-width:560px;margin:14vh auto 0;border:1px solid rgba(211,173,101,.26);border-radius:12px;padding:34px;background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.014));text-align:center}.unavailable-card>svg{color:#d8b96e}.unavailable-card .overline{margin:18px 0 8px}.unavailable-card h1{font:700 30px var(--font-serif);margin:0}.unavailable-card p{color:#9aa4b0;font-size:12px;line-height:1.7;margin:14px auto;max-width:420px}.unavailable-card button{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(211,173,101,.55);background:rgba(211,173,101,.1);color:#e7c979;border-radius:6px;padding:10px 13px;font-size:12px;cursor:pointer}.unavailable-card small{display:block;color:#7c8896;font-size:10px;line-height:1.6;margin-top:18px}
       .save-to-desk{display:inline-flex;align-items:center;gap:5px;margin-top:12px;color:#e4c275;text-decoration:none;border:1px solid rgba(211,173,101,.38);border-radius:4px;padding:6px 8px;font-size:10px;font-weight:700}.save-to-desk:hover{background:rgba(211,173,101,.1)}@media(max-width:760px){.save-to-desk{margin-top:13px}}
+    `}</style>
+    <style>{`
+      .terminal-header-left{display:flex;align-items:center;gap:14px;min-width:0}.terminal-home-button{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(211,173,101,.48);border-radius:5px;padding:7px 9px;color:#eccb80;text-decoration:none;font:600 11px var(--font-sans);white-space:nowrap;transition:background .16s var(--ease-out),transform .16s var(--ease-out)}.terminal-home-button:hover{background:rgba(211,173,101,.13)}.terminal-home-button:active{transform:scale(.97)}.terminal-tabs{display:flex;align-items:stretch;gap:17px;padding:0 28px;background:#0d131c;border-bottom:1px solid rgba(255,255,255,.11);position:sticky;top:70px;z-index:25}.terminal-tabs-label{display:flex;flex-direction:column;justify-content:center;min-width:92px;border-right:1px solid rgba(255,255,255,.09);padding-right:16px}.terminal-tabs-label span{color:#e4dfd2;font:700 12px var(--font-serif)}.terminal-tabs-label small{margin-top:4px;color:#7f8c9b;font:9px var(--font-mono)}.terminal-tabs-scroll{display:flex;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:thin;padding:8px 0}.terminal-tab{position:relative;display:grid;grid-template-columns:auto auto;column-gap:8px;align-items:center;min-width:144px;padding:7px 10px 9px;border:1px solid transparent;border-radius:6px;background:transparent;color:#8f9aa8;text-align:left;cursor:pointer;transition:background .16s var(--ease-out),border-color .16s var(--ease-out),transform .16s var(--ease-out)}.terminal-tab:hover{background:rgba(255,255,255,.045);color:#d8dfe6}.terminal-tab:active{transform:scale(.98)}.terminal-tab.active{border-color:rgba(211,173,101,.52);background:linear-gradient(115deg,rgba(211,173,101,.16),rgba(211,173,101,.035));color:#f0e5ca}.terminal-tab-name{font:700 12px var(--font-sans)}.terminal-tab small{grid-column:1/2;margin-top:3px;color:#7e8998;font:9px var(--font-mono);white-space:nowrap}.terminal-tab b{grid-column:2;grid-row:1/3;align-self:center;font:500 11px var(--font-mono);white-space:nowrap}.terminal-layout{display:block;min-height:calc(100vh - 118px)}.terminal-main{max-width:1480px;margin:0 auto}@media(max-width:760px){.terminal-header{padding:0 12px}.terminal-header-left{gap:8px}.terminal-home-button{padding:6px 8px;font-size:10px}.terminal-brand .overline{display:none}.terminal-brand h1{font-size:12px}.terminal-tabs{top:60px;gap:10px;padding:0 12px}.terminal-tabs-label{display:none}.terminal-tabs-scroll{padding:7px 0;gap:5px}.terminal-tab{min-width:132px;padding:7px 9px}.terminal-layout{min-height:calc(100vh - 108px)}}
     `}</style>
   </div>;
 }

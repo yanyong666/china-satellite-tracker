@@ -1,5 +1,22 @@
 export type TerminalStockId = "china-satellite" | "torch-electronics" | "naura" | "zhongji-innolight" | "catl";
 
+type TerminalTabSource = {
+  id: string;
+  name: string;
+  code: string;
+  sector: string;
+};
+
+export function getTerminalResearchTabs<T extends TerminalTabSource>(universe: T[], selectedId: string) {
+  return universe.map((stock) => ({
+    id: stock.id,
+    name: stock.name,
+    code: stock.code,
+    sector: stock.sector,
+    isActive: stock.id === selectedId,
+  }));
+}
+
 type ChangeSnapshot = { changePct: number } | null;
 
 export function sortOverviewByChange<T extends { snapshot: ChangeSnapshot }>(items: T[]): T[] {

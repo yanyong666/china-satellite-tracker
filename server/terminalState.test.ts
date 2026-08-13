@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectTerminalStock, sortOverviewByChange } from "../client/src/lib/terminalState";
+import { getTerminalResearchTabs, selectTerminalStock, sortOverviewByChange } from "../client/src/lib/terminalState";
 
 describe("terminal interaction state", () => {
   it("sorts available stock rows by descending percentage change and places unavailable quotes last", () => {
@@ -17,5 +17,18 @@ describe("terminal interaction state", () => {
 
     expect(selectTerminalStock("china-satellite", "torch-electronics", [...available])).toBe("torch-electronics");
     expect(selectTerminalStock("china-satellite", "naura", [...available])).toBe("china-satellite");
+  });
+
+  it("creates title-style research tabs with a single active stock", () => {
+    const tabs = getTerminalResearchTabs([
+      { id: "china-satellite", name: "中国卫星", code: "600118", sector: "商业航天" },
+      { id: "torch-electronics", name: "火炬电子", code: "603678", sector: "军工电子" },
+    ], "torch-electronics");
+
+    expect(tabs.map((tab) => ({ id: tab.id, isActive: tab.isActive }))).toEqual([
+      { id: "china-satellite", isActive: false },
+      { id: "torch-electronics", isActive: true },
+    ]);
+    expect(tabs[1]).toMatchObject({ name: "火炬电子", code: "603678", sector: "军工电子" });
   });
 });
