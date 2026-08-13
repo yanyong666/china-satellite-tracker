@@ -137,7 +137,7 @@ export function createMemberRepository(db: D1Database) {
 
     async findMemberCredential(email: string) {
       return db.prepare(
-        `SELECT email, display_name, password_hash, password_salt, session_version
+        `SELECT email, display_name AS displayName, password_hash, password_salt, session_version
          FROM members WHERE email = ?`,
       ).bind(email).first<MemberCredential>();
     },
@@ -150,7 +150,7 @@ export function createMemberRepository(db: D1Database) {
 
     async findSession(tokenHash: string, now: number) {
       return db.prepare(
-        `SELECT session.token_hash, session.expires_at, member.email, member.display_name, member.session_version
+        `SELECT session.token_hash, session.expires_at, member.email, member.display_name AS displayName, member.session_version
          FROM member_sessions AS session
          JOIN members AS member ON member.email = session.email
          WHERE session.token_hash = ? AND session.expires_at > ?`,

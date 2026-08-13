@@ -1,27 +1,27 @@
 # Cloudflare 同域会员架构
 
-## 结论
+## 现行结论
 
-用户选择“B”后，会员中心应采用 **Cloudflare Access 身份验证 + Worker JWT 验证 + D1 收藏存储**。公开研究页继续保持公开；会员入口、会员 API 与收藏数据路径由同一个 Access 应用保护。Worker 必须验证 Access 注入的 `Cf-Access-Jwt-Assertion`，并从经验证的 JWT `email` 声明推导用户身份，不能相信前端传入的用户 ID。[1] [2]
+会员中心采用 **Cloudflare Worker + D1 自有账户体系**，不启用 Cloudflare Access 或 Zero Trust，因此不需要银行卡、支付信息或任何外部身份服务。公开研究页和 `/api/trpc/*` 始终保持公开；`/member/api/*` 仅通过 Worker 签发的服务器端会话识别会员。密码仅在 Worker 端以带随机盐的 PBKDF2-SHA256 哈希保存，浏览器获得 `HttpOnly`、`Secure`、`SameSite=Lax` 会话 Cookie；前端不会传入或决定用户身份。
 
 | 层级 | 采用组件 | 职责 |
 | --- | --- | --- |
-| 身份验证 | Cloudflare Access One-time PIN | 向被 Access 策略允许的邮箱发送一次性登录码；PIN 单次使用且有效期为 10 分钟 [1] |
-| 请求鉴权 | Access JWT + Worker `jose` 验证 | 校验签名、签发者和应用 AUD；只接受 `Cf-Access-Jwt-Assertion` 头 [2] |
-| 用户数据 | Cloudflare D1 | 保存经身份令牌确定的成员邮箱和收藏标的；Worker 通过 D1 binding 使用参数化查询 [3] |
+| 身份验证 | Worker 自有注册与登录 | 最小账户资料、带随机盐的密码哈希与登录限流；不保存明文密码或证券账户凭据 |
+| 请求鉴权 | `hx_member_session` Cookie + D1 会话表 | Worker 仅接受已哈希存储、未过期且未失效的服务器端会话；Cookie 不可由 JavaScript 读取 |
+| 用户数据 | Cloudflare D1 | 保存账户、会话与主动收藏的股票标识；所有数据库写入采用参数化查询 [3] |
 | 公开研究 | `stock-terminal` Worker | 根路径和 `/terminal` 继续公开；不要求注册即可看公开披露与行情 |
 
 ## 路由边界
 
-为避免公共首页被登录墙拦截，会员页面和接口必须采用共同的专用前缀，例如 `/member` 与 `/member-api/*`，并配置为 Access 的受保护范围；公开页和公开行情接口不纳入同一 Access 应用。此种划分需要在域名激活后配置相应的 Access 应用、允许策略、OTP 身份提供商和 Worker 环境变量。
+公开内容和会员数据使用明确分层：`/` 与 `/terminal` 以及 `/api/trpc/*` 无身份依赖；`/member` 是前端会员入口；`/member/api/*` 由 Worker 优先处理，读取 Cookie 并执行会话校验。`wrangler.jsonc` 已将 `/member/api/*` 纳入 `run_worker_first`，避免资产 SPA 回退返回 HTML。
 
 ## 必要配置
 
 1. 创建一个 D1 数据库并将其以 `MEMBER_DB` binding 绑定到 `stock-terminal` Worker。
-2. 在 Cloudflare Zero Trust 创建 One-time PIN 身份提供商与一个路径范围的 Access 应用。
-3. 设置只允许指定邮箱或指定邮箱域的 Allow 策略；Access 默认拒绝不匹配策略的用户。[4]
-4. 将该 Access 应用的 AUD Tag 和 Cloudflare One team domain 设为 Worker 机密/环境变量。
-5. Worker 使用远程 JWKS 校验签名、`issuer` 和 `audience`，然后以验证后的邮箱作为会员数据主键。[2]
+2. 执行版本化迁移，创建会员、会话、限流和收藏表。
+3. Worker 只允许通过注册或成功登录建立会话，并以 D1 中的会话哈希、有效期与版本进行校验。
+4. 收藏接口只接受首期公开股票池中的 `stockId`，并通过复合主键去重。
+5. 在自定义域生效后，同域 Cookie 自动覆盖会员页与 API；不需要外部密钥或支付账户。
 
 ## 已创建的 Cloudflare 资源
 

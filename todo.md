@@ -74,11 +74,11 @@
 - [x] 新增用户收藏标的的数据表、迁移、受保护 tRPC 读写接口与服务端测试。
 - [x] 为 member.savedStocks、saveStock、removeStock 补充已登录用户的收藏、去重、列表与删除成功路径测试。
 - [x] 补充数据库层或 tRPC caller 级别的成功路径验证，确认 user_saved_stocks 表与受保护收藏接口真实协同。
-- [ ] 使用真实已登录会话完成 member.saveStock、savedStocks 与 removeStock 的端到端协同验证，并在验证后恢复用户收藏状态。
-- [ ] 验证连续收藏同一 stockId 后数据库与会员中心仅保留一条记录。
-- [ ] 验证取消收藏后的真实回读结果不再包含该标的。
-- [ ] 在品牌首页增加登录/会员中心入口，并实现未登录与已登录状态的差异化展示。
-- [ ] 新增会员中心页面，展示账户资料、已收藏研究标的与进入终端的快捷入口。
+- [x] 使用真实已登录会话完成 member.saveStock、savedStocks 与 removeStock 的端到端协同验证，并在验证后恢复用户收藏状态。
+- [x] 验证连续收藏同一 stockId 后数据库与会员中心仅保留一条记录。
+- [x] 验证取消收藏后的真实回读结果不再包含该标的。
+- [x] 在品牌首页增加登录/会员中心入口，并实现未登录与已登录状态的差异化展示。
+- [x] 新增会员中心页面，展示账户资料、已收藏研究标的与进入终端的快捷入口。
 - [x] 在研究终端添加“收藏到工作台”入口，并将当前标的传递给会员中心确认收藏。
 - [ ] 完成会员中心的 Vitest、登录与收藏流程、桌面和移动端视觉核验。
 - [x] 评估并确定 stock-terminal Worker 的 Cloudflare 同域身份方案与用户收藏存储方案。
@@ -92,14 +92,17 @@
 - [x] 不启用 Cloudflare Zero Trust/Access：其免费计划激活页要求银行卡及超额收费授权，不符合无卡要求。
 - [x] 停止 Cloudflare Zero Trust/Access 的银行卡授权流程，并将会员身份方案改为 Worker + D1 自有账户体系。
 - [x] 将 members 表扩展为密码哈希、每用户随机盐、会话版本与创建时间等最小认证字段，并新增可失效的 server-side session 表。
-- [ ] 将 Web Crypto PBKDF2 参数调整为 Cloudflare Workers 支持的迭代上限，并重新验证随机盐密码哈希和 HttpOnly、Secure、SameSite 会话 Cookie；不记录明文密码。
+- [x] 将 Web Crypto PBKDF2 参数调整为 Cloudflare Workers 支持的迭代上限，并重新验证随机盐密码哈希和 HttpOnly、Secure、SameSite 会话 Cookie；不记录明文密码。
 - [x] 将 /member/api 改为自有注册、登录、当前会话、退出与收藏接口，保持 /api/trpc 公开行情 API 无身份依赖。
-- [ ] 在会员中心增加注册/登录界面与明确的“无支付、不存交易密码”说明，并验证收藏跨会话可用。
+- [x] 在会员中心增加注册/登录界面与明确的“无支付、不存交易密码”说明，并验证收藏跨会话可用。
 - [x] 在 D1 成功执行 0002_self_auth.sql，新增密码哈希、随机盐、会话与登录限流表结构，未写入会员数据。
 - [x] 将会员 tRPC 接口迁移到 /member/api 独立路径并接入 Worker 自有会话鉴权，保持 /api/trpc 公开行情接口不受登录墙影响。
 - [x] 为前端增加同域会员 tRPC 客户端与会员中心路由，会员页不依赖 Manus OAuth 会话。
 - [x] 核验 Cloudflare Git 已部署无卡会员构建：/member/api/auth.me 在未登录时返回 JSON 401，而不是 SPA HTML。
 - [x] 将 /member/api/* 加入 Worker 的 run_worker_first 路由，避免同域会员 API 被 SPA fallback 返回 HTML。
-- [ ] 在 workers.dev 上完成一次真实注册/登录，核验响应实际下发 HttpOnly、Secure、SameSite 会话 Cookie。
-- [ ] 使用真实已登录会话验证 auth.me、member.profile、saveStock、removeStock 的端到端流程，并确认跨请求会话持续有效。
-- [ ] 在最新 Cloudflare 部署上重新验证 /member 前端页面可访问且不再返回 404。
+- [x] 在 workers.dev 上完成一次真实注册/登录，核验响应实际下发 HttpOnly、Secure、SameSite 会话 Cookie。
+- [x] 使用真实已登录会话验证 auth.me、member.profile、saveStock、removeStock 的端到端流程，并确认跨请求会话持续有效。
+- [x] 在最新 Cloudflare 部署上重新验证 /member 前端页面可访问且不再返回 404。
+- [ ] 为 Cloudflare member Worker 路由或 MemberCenter 页面补充明确的 Vitest 覆盖，至少验证登录态资料与收藏渲染的关键状态分支。
+- [ ] 使用真实登录临时账户核验 /member 已登录工作台的桌面与移动端渲染，确认账户资料、收藏列表、终端快捷入口与移除按钮实际可用。
+- [x] 修复 D1 `display_name` 字段未映射为会员资料 `displayName`，并以 Vitest 覆盖登录和会话读取 SQL 的字段别名。

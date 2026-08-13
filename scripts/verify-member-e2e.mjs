@@ -50,20 +50,38 @@ const profileAfterSave = await call("member.profile", { authenticated: true });
 const savedAfterSave = profileAfterSave.payload.result?.data?.json?.savedStocks ?? [];
 expect(savedAfterSave.filter(stock => stock.stockId === "china-satellite").length === 1, "duplicate favorite was not deduplicated");
 
-const remove = await call("member.removeStock", { method: "POST", authenticated: true, input: { stockId: "china-satellite" } });
-expect(remove.response.status === 200, `removeStock expected 200, got ${remove.response.status}`);
-const profileAfterRemove = await call("member.profile", { authenticated: true });
-const savedAfterRemove = profileAfterRemove.payload.result?.data?.json?.savedStocks ?? [];
-expect(!savedAfterRemove.some(stock => stock.stockId === "china-satellite"), "favorite remains after removeStock");
-
 const logout = await call("auth.logout", { method: "POST", authenticated: true });
 expect(logout.response.status === 200, `logout expected 200, got ${logout.response.status}`);
 expect((logout.response.headers.get("set-cookie") ?? "").includes("Max-Age=0"), "logout did not expire the session cookie");
 const postLogout = await call("auth.me", { authenticated: true });
 expect(postLogout.response.status === 401, `post-logout auth.me expected 401, got ${postLogout.response.status}`);
 
+const login = await call("auth.login", { method: "POST", input: { email, password } });
+expect(login.response.status === 200, `login expected 200, got ${login.response.status}: ${JSON.stringify(login.payload)}`);
+const loginCookie = login.response.headers.get("set-cookie") ?? "";
+expect(loginCookie.includes("HttpOnly"), "login session cookie is not HttpOnly");
+expect(loginCookie.includes("Secure"), "login session cookie is not Secure");
+expect(loginCookie.includes("SameSite=Lax"), "login session cookie is not SameSite=Lax");
+cookie = loginCookie.split(";")[0] ?? "";
+expect(cookie.startsWith("hx_member_session="), "login response is missing member session cookie");
+
+const meAfterLogin = await call("auth.me", { authenticated: true });
+expect(meAfterLogin.response.status === 200, `auth.me after login expected 200, got ${meAfterLogin.response.status}`);
+expect(meAfterLogin.payload.result?.data?.json?.email === email, "auth.me after login did not return the session account");
+const profileAfterLogin = await call("member.profile", { authenticated: true });
+const savedAfterLogin = profileAfterLogin.payload.result?.data?.json?.savedStocks ?? [];
+expect(savedAfterLogin.filter(stock => stock.stockId === "china-satellite").length === 1, "favorite did not persist after a new login session");
+
+const remove = await call("member.removeStock", { method: "POST", authenticated: true, input: { stockId: "china-satellite" } });
+expect(remove.response.status === 200, `removeStock expected 200, got ${remove.response.status}`);
+const profileAfterRemove = await call("member.profile", { authenticated: true });
+const savedAfterRemove = profileAfterRemove.payload.result?.data?.json?.savedStocks ?? [];
+expect(!savedAfterRemove.some(stock => stock.stockId === "china-satellite"), "favorite remains after removeStock");
+const finalLogout = await call("auth.logout", { method: "POST", authenticated: true });
+expect(finalLogout.response.status === 200, `final logout expected 200, got ${finalLogout.response.status}`);
+
 console.log(JSON.stringify({
   status: "passed",
   testEmail: email,
-  checks: ["register", "HttpOnly/Secure/SameSite cookie", "auth.me", "save", "deduplicate", "remove", "logout", "post-logout 401"],
+  checks: ["register", "register HttpOnly/Secure/SameSite cookie", "auth.me", "save", "deduplicate", "logout", "post-logout 401", "login", "login HttpOnly/Secure/SameSite cookie", "cross-session favorite", "remove", "final logout"],
 }, null, 2));

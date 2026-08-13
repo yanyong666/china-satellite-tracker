@@ -58,4 +58,28 @@ describe("Cloudflare D1 member repository", () => {
     expect(calls[1]?.query).toContain("WHERE email = ? AND stock_id = ?");
     expect(calls[1]?.values).toEqual(["member@example.com", "china-satellite"]);
   });
+
+  it("aliases D1 display_name to the MemberIdentity displayName field for login and session reads", async () => {
+    const queries: string[] = [];
+    const db: D1Database = {
+      prepare(query) {
+        queries.push(query);
+        const statement: D1Statement = {
+          bind: () => statement,
+          all: async <T>() => ({ results: [] as T[] }),
+          first: async <T>() => null as T | null,
+          run: async () => ({ meta: { changes: 0 } }),
+        };
+        return statement;
+      },
+    };
+    const repository = createMemberRepository(db);
+
+    await repository.findMemberCredential("member@example.com");
+    await repository.findSession("session-hash", 123);
+
+    expect(queries).toHaveLength(2);
+    expect(queries[0]).toContain("display_name AS displayName");
+    expect(queries[1]).toContain("display_name AS displayName");
+  });
 });

@@ -1,6 +1,7 @@
 import { LANDING_PRIMARY_CTA, LANDING_PRINCIPLES } from "@/lib/landingContent";
+import { memberTrpc } from "@/lib/cloudflareMemberTrpc";
 import { SITE_ROUTES } from "@/lib/siteRoutes";
-import { Activity, ArrowUpRight, BarChart3, ChevronRight, CircleDot, Database, Globe, Layers3, Radar, RefreshCw, Search, ShieldCheck, TrendingUp } from "lucide-react";
+import { Activity, ArrowUpRight, BarChart3, BookmarkCheck, ChevronRight, CircleDot, Database, Globe, Layers3, LogIn, Radar, RefreshCw, Search, ShieldCheck, TrendingUp } from "lucide-react";
 import React from "react";
 import { Link } from "wouter";
 import "./landing.css";
@@ -14,6 +15,12 @@ const signalCards = [
 const tickerItems = ["沪深市场快照", "板块相对强弱", "透明个股评分", "披露事件跟踪", "资金结构说明"] as const;
 
 export default function Landing() {
+  const memberSession = memberTrpc.auth.me.useQuery(undefined, { retry: false, refetchOnWindowFocus: false });
+  const hasMemberSession = Boolean(memberSession.data);
+  const memberName = memberSession.data?.displayName || "研究会员";
+  const memberEntryTitle = memberSession.isLoading ? "正在读取会员状态" : hasMemberSession ? `进入 ${memberName} 的工作台` : "登录或创建工作台";
+  const memberEntryDetail = memberSession.isLoading ? "会话仅用于识别你的个人研究清单" : hasMemberSession ? "已登录 · 查看已收藏标的" : "保存标的时登录；公开研究无需登录";
+
   return (
     <div className="landing-shell">
       <div className="landing-grid" aria-hidden="true" />
@@ -28,7 +35,7 @@ export default function Landing() {
         <nav className="landing-nav" aria-label="首页导航">
           <a href="#method">研究方法</a>
           <a href="#coverage">覆盖范围</a>
-          <Link href={SITE_ROUTES.member} className="landing-nav-member">会员中心</Link>
+          <Link href={SITE_ROUTES.member} className="landing-nav-member"><span className={hasMemberSession ? "member-status-dot signed-in" : "member-status-dot"} />{hasMemberSession ? "我的工作台" : "会员中心"}</Link>
           <Link href={LANDING_PRIMARY_CTA.href} className="landing-nav-cta">终端入口 <ArrowUpRight size={14} /></Link>
         </nav>
       </header>
@@ -49,6 +56,11 @@ export default function Landing() {
               <Link href={LANDING_PRIMARY_CTA.href} className="primary-entry">{LANDING_PRIMARY_CTA.label} <ChevronRight size={17} /></Link>
               <a href="#method" className="secondary-entry">了解研究口径 <ArrowUpRight size={15} /></a>
             </div>
+            <Link href={SITE_ROUTES.member} className="landing-member-entry" aria-label={memberEntryTitle}>
+              <span className="member-entry-icon">{hasMemberSession ? <BookmarkCheck size={17} /> : <LogIn size={17} />}</span>
+              <span className="member-entry-copy"><small>MEMBER DESK / NO PAYMENT</small><strong>{memberEntryTitle}</strong><em>{memberEntryDetail}</em></span>
+              <ArrowUpRight size={16} />
+            </Link>
             <div className="landing-proof">{LANDING_PRINCIPLES.map((item) => <span key={item}><ShieldCheck size={14} /> {item}</span>)}</div>
           </div>
 
