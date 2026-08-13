@@ -85,6 +85,7 @@
 - [x] 将生产 Worker 的会员功能从 Manus OAuth/MySQL 运行时迁移为 Cloudflare D1 自有账户数据层，公开终端不依赖 Manus 会话。
 - [x] 为 Cloudflare 同域会员体系配置并核验所需 D1 binding、表结构与最小化 Cookie 会话资源；该无卡方案不需要额外机密变量。
 - [ ] 在 china-finance.eu.org 可绑定后部署并验证同域登录、会员中心、收藏与退出流程。
+- [x] 每日自动查询 china-finance.eu.org 的公共 NS/SOA 记录；仅在公开委派至 Cloudflare Nameserver 后报告并继续自定义域绑定、同域会员验证。定时任务已启用，间隔 24 小时，时区为 Asia/Shanghai。
 - [x] 创建 Cloudflare D1 数据库 stock-terminal-members（ID：80f1a88c-850c-4393-a93b-960729d53058），用于同域会员收藏存储。
 - [x] 将 stock-terminal-members 绑定为 stock-terminal Worker 的 MEMBER_DB，并在 wrangler.jsonc 固化相同绑定。
 - [x] 新增 Cloudflare D1 会员迁移、参数化收藏存储层、Access JWT 校验代码与 23 项完整 Vitest/TypeScript 验证。
