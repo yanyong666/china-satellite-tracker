@@ -54,6 +54,12 @@ Cloudflare Zero Trust 当前处于首次开通向导，提供 `Zero Trust 免费
 
 首次生产注册验证显示 Cloudflare Workers 的 PBKDF2 实现拒绝高于 `100000` 的迭代数（原先请求 `210000`，返回 `NotSupportedError`）。该问题未写入任何账户记录；下一版将使用 Workers 支持的最大 `100000` 次迭代并重新执行完整注册、会话和收藏验证。
 
+随后已将迭代次数调整为 Workers 支持的 `100000`，并通过生产端到端验证：临时账户完成注册、注册 Cookie 属性（`HttpOnly`、`Secure`、`SameSite=Lax`）、会话读取、收藏写入与去重、退出后 401、重新登录 Cookie 属性、跨会话收藏恢复、取消收藏和最终退出。验证账户未保留收藏标的。
+
+生产地址 `/member` 已在桌面和 375px 移动视口核验。未登录状态显示登录/注册表单及“无支付、不存交易密码”说明；已登录临时账户显示注册名称、邮箱、已收藏的中国卫星、终端快捷入口及移除按钮。浏览器验收脚本已执行真实移除操作并确认工作台即时变为无收藏状态，测试会话随后注销。
+
+针对 Worker 会员路由新增了 Vitest：使用受控 D1 模拟会话验证 `auth.me` 与 `member.profile` 均返回会员邮箱、`displayName` 以及可解析为“中国卫星（600118）”的收藏元数据。当前项目共 26 项 Vitest 均通过。
+
 ## 参考资料
 
 [1]: https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/ "Cloudflare One — One-time PIN login"

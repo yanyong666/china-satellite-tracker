@@ -80,7 +80,7 @@
 - [x] 在品牌首页增加登录/会员中心入口，并实现未登录与已登录状态的差异化展示。
 - [x] 新增会员中心页面，展示账户资料、已收藏研究标的与进入终端的快捷入口。
 - [x] 在研究终端添加“收藏到工作台”入口，并将当前标的传递给会员中心确认收藏。
-- [ ] 完成会员中心的 Vitest、登录与收藏流程、桌面和移动端视觉核验。
+- [x] 完成会员中心的 Vitest、登录与收藏流程、桌面和移动端视觉核验。
 - [x] 评估并确定 stock-terminal Worker 的 Cloudflare 同域身份方案与用户收藏存储方案。
 - [x] 将生产 Worker 的会员功能从 Manus OAuth/MySQL 运行时迁移为 Cloudflare D1 自有账户数据层，公开终端不依赖 Manus 会话。
 - [x] 为 Cloudflare 同域会员体系配置并核验所需 D1 binding、表结构与最小化 Cookie 会话资源；该无卡方案不需要额外机密变量。
@@ -103,6 +103,6 @@
 - [x] 在 workers.dev 上完成一次真实注册/登录，核验响应实际下发 HttpOnly、Secure、SameSite 会话 Cookie。
 - [x] 使用真实已登录会话验证 auth.me、member.profile、saveStock、removeStock 的端到端流程，并确认跨请求会话持续有效。
 - [x] 在最新 Cloudflare 部署上重新验证 /member 前端页面可访问且不再返回 404。
-- [ ] 为 Cloudflare member Worker 路由或 MemberCenter 页面补充明确的 Vitest 覆盖，至少验证登录态资料与收藏渲染的关键状态分支。
-- [ ] 使用真实登录临时账户核验 /member 已登录工作台的桌面与移动端渲染，确认账户资料、收藏列表、终端快捷入口与移除按钮实际可用。
+- [x] 为 Cloudflare member Worker 路由或 MemberCenter 页面补充明确的 Vitest 覆盖，至少验证登录态资料与收藏渲染的关键状态分支。
+- [x] 使用真实登录临时账户核验 /member 已登录工作台的桌面与移动端渲染，确认账户资料、收藏列表、终端快捷入口与移除按钮实际可用。
 - [x] 修复 D1 `display_name` 字段未映射为会员资料 `displayName`，并以 Vitest 覆盖登录和会话读取 SQL 的字段别名。
