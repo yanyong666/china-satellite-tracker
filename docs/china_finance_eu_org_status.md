@@ -47,3 +47,5 @@
 Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-terminal.yanyong-email.workers.dev/` 根路径现显示“华夏股票研究终端”品牌标题页，且其主入口指向 `/terminal`。这确认 `stock-terminal` Worker 已基于包含品牌首页的最新代码运行。
 
 在标题页部署完成后的复查中，公共 NS 查询仍返回 `Status: 3`（NXDOMAIN）；父区域 `eu.org` 的 SOA 序列号已从 `2026081305` 更新为 `2026081307`，但该响应中仍未包含 `china-finance.eu.org` 的 NS 记录。因此，当前可确认父区域正在更新，但尚不能确认已完成该子域到 Cloudflare 的公开委派。
+
+2026-08-13 后续复查（Cloudflare DNS-over-HTTPS）中，`china-finance.eu.org` 的 NS 与 SOA 查询仍为 `Status: 3`（NXDOMAIN），Authority 仅含父区域 `eu.org` 的 SOA，序列号为 `2026081309`；A 查询也未得到可用记录。较早的父区序列号已有变化，但该三级域仍未公开委派至 `augustus.ns.cloudflare.com` 与 `deb.ns.cloudflare.com`。因此保持 `stock-terminal.yanyong-email.workers.dev` 为当前公开入口，不执行 Worker 自定义域绑定。

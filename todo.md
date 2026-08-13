@@ -44,7 +44,7 @@
 - [x] 完成公开基础终端的桌面与移动端核验，并创建交付检查点。
 - [x] 核对现有全栈研究终端的 Cloudflare 部署适配性、构建产物与用户帐户中的可用域名。
 - [x] 准备并验证 Cloudflare Pages 或 Workers 的兼容部署配置，保留现有公开行情服务能力。
-- [ ] 在用户确认前不改变任何生产 DNS；创建并核验 Cloudflare 预览部署。
+- [x] 在用户确认前不改变自定义域生产 DNS；以 workers.dev 正式地址完成部署、SPA 回退与公开行情接口核验。
 - [ ] 在用户确认具体域名与 DNS 记录后接入生产域名，并交付访问地址与运维说明。
 - [x] 通过 Cloudflare 控制台 GitHub OAuth 连接 yanyong666/china-satellite-tracker，避免使用 API Token。
 - [x] 配置 Cloudflare Git 项目的构建命令、输出目录与 Worker 入口，并创建无 Token 预览部署。
@@ -55,7 +55,7 @@
 - [x] 打开并核验 https://stock-terminal.yanyong-email.workers.dev 首页真实可访问。
 - [x] 等待 Cloudflare 拉取 GitHub main 上的 wrangler.jsonc 名称同步提交，核验最新构建已基于 stock-terminal 完成。
 - [x] 实际打开并核验 https://stock-terminal.yanyong-email.workers.dev 首页返回成功且公开行情终端完成加载。
-- [ ] 收集用户准备好的自定义域名或子域名，并在 Cloudflare 中将其绑定至 stock-terminal Worker。
+- [x] 收集用户准备好的自定义域名或子域名；目标为 china-finance.eu.org，待 EU.org 公共委派后绑定至 stock-terminal Worker。
 - [x] 在 Cloudflare 创建 china-finance.eu.org Free DNS Zone，记录 augustus.ns.cloudflare.com 与 deb.ns.cloudflare.com。
 - [x] 向 EU.org 提交 china-finance.eu.org 免费域名申请（引用编号：20260812124602-arf-40032），并通过 Nameserver、SOA 与 NS 校验。
 - [ ] 等待 EU.org 审核与 Nameserver 委派生效，然后将 china-finance.eu.org 作为自定义域绑定到 stock-terminal Worker。
