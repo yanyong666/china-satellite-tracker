@@ -81,9 +81,9 @@
 - [ ] 新增会员中心页面，展示账户资料、已收藏研究标的与进入终端的快捷入口。
 - [x] 在研究终端添加“收藏到工作台”入口，并将当前标的传递给会员中心确认收藏。
 - [ ] 完成会员中心的 Vitest、登录与收藏流程、桌面和移动端视觉核验。
-- [ ] 评估并确定 stock-terminal Worker 的 Cloudflare 同域身份方案与用户收藏存储方案。
-- [ ] 将现有会员功能从 Manus OAuth/MySQL 依赖迁移为 Cloudflare 兼容的身份和数据层，并移除不适用的同域调用路径。
-- [ ] 为 Cloudflare 同域会员体系配置所需的绑定、机密变量与数据资源，并完成安全最小权限核验。
+- [x] 评估并确定 stock-terminal Worker 的 Cloudflare 同域身份方案与用户收藏存储方案。
+- [x] 将生产 Worker 的会员功能从 Manus OAuth/MySQL 运行时迁移为 Cloudflare D1 自有账户数据层，公开终端不依赖 Manus 会话。
+- [x] 为 Cloudflare 同域会员体系配置并核验所需 D1 binding、表结构与最小化 Cookie 会话资源；该无卡方案不需要额外机密变量。
 - [ ] 在 china-finance.eu.org 可绑定后部署并验证同域登录、会员中心、收藏与退出流程。
 - [x] 创建 Cloudflare D1 数据库 stock-terminal-members（ID：80f1a88c-850c-4393-a93b-960729d53058），用于同域会员收藏存储。
 - [x] 将 stock-terminal-members 绑定为 stock-terminal Worker 的 MEMBER_DB，并在 wrangler.jsonc 固化相同绑定。
@@ -92,11 +92,14 @@
 - [x] 不启用 Cloudflare Zero Trust/Access：其免费计划激活页要求银行卡及超额收费授权，不符合无卡要求。
 - [x] 停止 Cloudflare Zero Trust/Access 的银行卡授权流程，并将会员身份方案改为 Worker + D1 自有账户体系。
 - [x] 将 members 表扩展为密码哈希、每用户随机盐、会话版本与创建时间等最小认证字段，并新增可失效的 server-side session 表。
-- [x] 使用 Web Crypto 在 Worker 端实现带随机盐的 PBKDF2 密码哈希和 HttpOnly、Secure、SameSite 会话 Cookie；不记录明文密码。
+- [ ] 将 Web Crypto PBKDF2 参数调整为 Cloudflare Workers 支持的迭代上限，并重新验证随机盐密码哈希和 HttpOnly、Secure、SameSite 会话 Cookie；不记录明文密码。
 - [x] 将 /member/api 改为自有注册、登录、当前会话、退出与收藏接口，保持 /api/trpc 公开行情 API 无身份依赖。
 - [ ] 在会员中心增加注册/登录界面与明确的“无支付、不存交易密码”说明，并验证收藏跨会话可用。
 - [x] 在 D1 成功执行 0002_self_auth.sql，新增密码哈希、随机盐、会话与登录限流表结构，未写入会员数据。
-- [ ] 将会员 tRPC 接口迁移到 /member/api 独立路径，并为该路径接入 Cloudflare Access，保持 /api/trpc 公开行情接口不受登录墙影响。
-- [ ] 为前端增加 Cloudflare Access 专用 tRPC 客户端与会员中心路由，移除会员页对 Manus OAuth 会话的依赖。
-- [ ] 等待并核验 Cloudflare Git 已部署 148ef5f7 的无卡会员构建，使 stock-terminal Worker 的 /member 路由与 /member/api 可用。
-- [ ] 将 /member/api/* 加入 Worker 的 run_worker_first 路由，避免同域会员 API 被 SPA fallback 返回 HTML。
+- [x] 将会员 tRPC 接口迁移到 /member/api 独立路径并接入 Worker 自有会话鉴权，保持 /api/trpc 公开行情接口不受登录墙影响。
+- [x] 为前端增加同域会员 tRPC 客户端与会员中心路由，会员页不依赖 Manus OAuth 会话。
+- [x] 核验 Cloudflare Git 已部署无卡会员构建：/member/api/auth.me 在未登录时返回 JSON 401，而不是 SPA HTML。
+- [x] 将 /member/api/* 加入 Worker 的 run_worker_first 路由，避免同域会员 API 被 SPA fallback 返回 HTML。
+- [ ] 在 workers.dev 上完成一次真实注册/登录，核验响应实际下发 HttpOnly、Secure、SameSite 会话 Cookie。
+- [ ] 使用真实已登录会话验证 auth.me、member.profile、saveStock、removeStock 的端到端流程，并确认跨请求会话持续有效。
+- [ ] 在最新 Cloudflare 部署上重新验证 /member 前端页面可访问且不再返回 404。

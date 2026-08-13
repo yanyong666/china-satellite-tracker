@@ -37,7 +37,8 @@ export type SavedStockRow = {
   created_at: number;
 };
 
-const PASSWORD_ITERATIONS = 210_000;
+// Cloudflare Workers Web Crypto 当前支持 PBKDF2 至多 100,000 次迭代。
+const PASSWORD_ITERATIONS = 100_000;
 const SESSION_COOKIE_NAME = "hx_member_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const LOGIN_WINDOW_SECONDS = 60 * 15;

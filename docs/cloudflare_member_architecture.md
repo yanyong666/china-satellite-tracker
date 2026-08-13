@@ -50,6 +50,10 @@ Cloudflare Zero Trust 当前处于首次开通向导，提供 `Zero Trust 免费
 
 `0002_self_auth.sql` 已于 2026-08-13 在 D1 Console 成功执行。Cloudflare 返回“此查询已成功执行”，响应时间 7550 毫秒、查询时间 0.27 毫秒。该操作仅扩展了认证表结构并创建 `member_sessions`、`member_login_locks` 及会话索引；未写入用户、明文密码、支付信息或任何证券账户信息。
 
+最新 Git 提交 `86e780c` 已由 Cloudflare 部署到 `stock-terminal`。对 `https://stock-terminal.yanyong-email.workers.dev/member/api/auth.me` 的未登录请求返回 `application/json` 与 HTTP 401，tRPC 错误为“请先登录会员中心。”；这确认 `/member/api/*` 已由 Worker 优先处理，不再被 SPA fallback 返回 HTML，且自有会话鉴权已在生产 Worker 运行。
+
+首次生产注册验证显示 Cloudflare Workers 的 PBKDF2 实现拒绝高于 `100000` 的迭代数（原先请求 `210000`，返回 `NotSupportedError`）。该问题未写入任何账户记录；下一版将使用 Workers 支持的最大 `100000` 次迭代并重新执行完整注册、会话和收藏验证。
+
 ## 参考资料
 
 [1]: https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/ "Cloudflare One — One-time PIN login"
