@@ -60,6 +60,10 @@ Cloudflare Zero Trust 当前处于首次开通向导，提供 `Zero Trust 免费
 
 针对 Worker 会员路由新增了 Vitest：使用受控 D1 模拟会话验证 `auth.me` 与 `member.profile` 均返回会员邮箱、`displayName` 以及可解析为“中国卫星（600118）”的收藏元数据。当前项目共 26 项 Vitest 均通过。
 
+## 公开终端与会员客户端隔离
+
+会员 API 与公开行情 API 分别使用 `/member/api` 和 `/api/trpc`。曾出现的公开终端无限加载并非登录限制，而是两个 React tRPC Provider 嵌套时复用了库的默认上下文，造成所有 `tracker.*` 公开查询错误发送至 `/member/api`。现已为两个客户端提供独立 React Context，并在 Vitest 中断言其不相同。生产无登录浏览器验收确认 `/terminal` 已展示股票池和中国卫星数据，批量 `/api/trpc` 返回 200，浏览器控制台无错误。未配置的静态分析占位脚本也已移除，避免请求 `/%VITE_ANALYTICS_ENDPOINT%/umami` 返回 400。
+
 ## 参考资料
 
 [1]: https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/ "Cloudflare One — One-time PIN login"
