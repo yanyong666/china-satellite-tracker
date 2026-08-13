@@ -62,3 +62,11 @@
 - [x] 实际请求并核验 Cloudflare Worker 的 tracker.universe、overview、market、research 公开接口返回成功，并记录返回证据。
 - [x] 实际访问一个非根前端路由，核验 Worker 的 SPA 回退结果。
 - [x] 在 Cloudflare 控制台确认 china-satellite-tracker.pages.dev 已停用或不再作为生产入口，或补充其连接关闭问题的独立处置证据（当前地址返回 HTTP 404）。
+- [ ] 根据 EU.org 的 “Domain Created” 状态，在 Cloudflare 核验 china-finance.eu.org Zone 已变为 Active 后绑定到 stock-terminal Worker。
+- [x] 分析 zhangting.us 的公开视觉语言，并将可复用的版式节奏转译为不复制内容的华夏股票研究终端品牌标题页。
+- [x] 新增独立的品牌首页、明确的“进入研究终端”入口与终端返回首页导航。
+- [x] 为标题页路由与核心 CTA 行为补充 Vitest 覆盖，并完成桌面和移动端视觉核验。
+- [x] 记录 zhangting.us 当前公开可见的视觉层级与布局节奏，并明确华夏品牌标题页的非复制性设计转译原则。
+- [x] 增强标题页路由与 CTA 的可执行测试，并实测首页 CTA 可导航至 /terminal。
+- [x] 补充移动端 /terminal 入口的视觉核验，确认小屏路由跳转与加载状态可用。
+- [x] 优化终端加载态的品牌层级与返回首页入口，避免移动端出现无导航的空白等待界面。

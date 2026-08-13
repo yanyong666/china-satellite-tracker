@@ -31,3 +31,15 @@
 `https://stock-terminal.yanyong-email.workers.dev/` 已于 2026-08-12 成功返回“华夏股票研究终端”主页面，并完成公开行情初始化。`/api/trpc/tracker.universe?input={"json":null}` 返回 5 只首期股票池标的；`/api/trpc/tracker.overview?input={"json":null}` 成功返回公开股票快照、指数、前复权日线及板块概览；携带 `stockId=china-satellite` 的 `tracker.market` 和 `tracker.research` 接口分别返回行情/日线与透明研究卡/公开披露来源。深层路径 `/research/china-satellite` 返回了带有“华夏股票研究终端”标题的 SPA 应用及其内部 NotFound 视图，而非 Cloudflare 边缘 404，说明 Worker 的 SPA 回退生效。旧 Pages 项目的最终处置状态仍待独立确认。
 
 旧地址 `https://china-satellite-tracker.pages.dev` 于同日返回 HTTP 404（Cloudflare 响应），因此不再是有效生产入口。当前对外访问应使用 `stock-terminal.yanyong-email.workers.dev`，直至 `china-finance.eu.org` 获得 EU.org 委派并绑定到该 Worker。
+
+## EU.org 创建状态截图
+
+用户于 2026-08-13 提供的 EU.org 账户截图中，状态行清晰显示 `Domain Created Updated DNSSEC Flags`。该截图可确认 EU.org 已创建相应域名记录；但截图未显示域名文本、Nameserver 委派明细或 Cloudflare Zone 的 `Active` 状态。因此，下一步仍须在 Cloudflare 控制台核验 Zone 已激活后，才能将 `china-finance.eu.org` 绑定至 `stock-terminal` Worker。
+
+随后在 Cloudflare Zone 概览中确认，`china-finance.eu.org` 目前显示“正在等待注册机构传播新的名称服务器”。控制台给出的预期是通常 1–2 小时、最长可达 24 小时，并保留“立即检查名称服务器”入口。该 Zone 尚未激活，且当前状态为“未连接 Workers”；因此此刻不应执行自定义域绑定，待 Cloudflare 变为 `Active` 后再继续。
+
+已执行 Cloudflare 的“立即检查名称服务器”。控制台确认正在检查 `china-finance.eu.org` 的 Nameserver，并提示“请等待几个小时进行更新”；检查后状态仍为等待注册机构传播，故未进行 Worker 绑定。
+
+## 公共 DNS 与注册记录核验
+
+在 2026-08-13 的查询中，Cloudflare DNS over HTTPS 与 Google Public DNS 对 `china-finance.eu.org` 的 NS 查询均返回 `Status: 3`（NXDOMAIN），并在权威区段中仅返回 `eu.org` 的 SOA；这表示该子域的委派记录尚未在公共递归解析器中可见。RDAP 对该三级域的请求没有返回可用域名对象；直接 WHOIS 服务查询也未返回可解析的域名条目。该阶段与 Cloudflare 控制台“等待注册机构传播”状态一致，不能据此认为域名已完成公开委派。
