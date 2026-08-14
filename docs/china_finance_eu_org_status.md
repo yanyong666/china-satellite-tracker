@@ -65,3 +65,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 每日自动核验在 2026-08-14 触发后，随后的即时复查显示 Cloudflare 与 Google 的 NS 查询仍为 `Status: 3`，Cloudflare A 查询同样为 `Status: 3`；两者父区 SOA 序列号均已更新至 `2026081403`。父区仍在变化，但尚未公开委派该子域，继续等待。
 
 最新复核中，Cloudflare 与 Google 的 NS、SOA 查询，以及 Cloudflare 的 A 查询仍全部返回 `Status: 3`（NXDOMAIN），Authority 仅包含 `eu.org` 的 SOA；两家解析器一致显示父区序列号更新至 `2026081405`。这说明父区继续变化，但 `china-finance.eu.org` 尚未获得公开 NS 委派，仍不能绑定到 Worker。
+
+再次检测中，Cloudflare 与 Google 对 NS、SOA 的结果，以及 Cloudflare 对 A 的结果继续一致为 `Status: 3`（NXDOMAIN）；父区 SOA 序列号进一步更新至 `2026081406`。因此仍未出现 `augustus.ns.cloudflare.com` 或 `deb.ns.cloudflare.com` 的公开委派，保持等待，不修改生产 DNS 或 Worker 域名设置。
