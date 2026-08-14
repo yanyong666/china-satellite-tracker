@@ -83,3 +83,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 进一步向另一台 EU.org 权威名称服务器 `gra.wolfhugel.eu` 直接查询 NS，得到同样带 `aa` 标志的权威 `NXDOMAIN` 与父区 SOA `2026081406`。两台独立权威节点结果一致，未发现区域同步差异或已发布但未传播的委派记录。
 
 第三台 EU.org 权威名称服务器 `ns3.keltia.net` 的直接 NS 查询同样带 `aa` 标志返回 `NXDOMAIN`，Authority 仍仅为父区 SOA `2026081406`。至此三台不同权威节点的结果一致：目标域尚未在 EU.org 父区发布委派。
+
+第四台 EU.org 权威名称服务器 `ns.bortzmeyer.eu.org` 也直接返回带 `aa` 标志的 `NXDOMAIN`，父区 SOA 仍为 `2026081406`。多个权威节点的持续一致性表明当前不存在局部节点同步差异，委派记录仍未发布。
