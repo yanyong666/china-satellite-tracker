@@ -69,3 +69,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 再次检测中，Cloudflare 与 Google 对 NS、SOA 的结果，以及 Cloudflare 对 A 的结果继续一致为 `Status: 3`（NXDOMAIN）；父区 SOA 序列号进一步更新至 `2026081406`。因此仍未出现 `augustus.ns.cloudflare.com` 或 `deb.ns.cloudflare.com` 的公开委派，保持等待，不修改生产 DNS 或 Worker 域名设置。
 
 同轮在已登录 Cloudflare 控制台对 Zone 概览进行了只读复核。界面明确显示“正在等待注册机构传播新的名称服务器”，列出待委派的 `augustus.ns.cloudflare.com` 与 `deb.ns.cloudflare.com`，并显示当前“未连接 Workers”。Zone 仍为 Free 计划、DNS 设置为“完全”，但尚未激活；这一状态与两家公共解析器的 NXDOMAIN 结果一致。因此本轮未点击“连接 Worker”或修改任何域名配置。
+
+随后刷新 Zone 概览，仍显示相同的“正在等待注册机构传播新的名称服务器”状态及“未连接 Workers”提示，说明 Cloudflare 尚未接收到可激活该 Zone 的权威委派。本次刷新仅用于状态核验，未触发名称服务器检查、未创建 DNS 记录，也未连接 `stock-terminal` Worker。
