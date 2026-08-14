@@ -77,3 +77,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 在本轮后续的 Cloudflare Zone 只读刷新中，控制台继续显示“正在等待注册机构传播新的名称服务器”，并保持“未连接 Workers”。界面仍列出 `augustus.ns.cloudflare.com` 与 `deb.ns.cloudflare.com` 作为待传播的委派目标，未显示 Zone Active、可用地址记录或可访问的自定义域。未点击名称服务器检查、连接 Worker 或任何配置变更入口。
 
 启用 DNSSEC 数据的 NS 查询仍返回 `Status: 3`（NXDOMAIN）。响应中出现的是父区 `eu.org` 的已签名 SOA 与否定证明记录，而非 `china-finance.eu.org` 的委派记录；因此该结果不改变“公开委派尚未生效”的判断。
+
+为排除递归解析器缓存影响，本轮使用标准 DNS 工具直接向 EU.org 权威名称服务器 `ns.eu.org` 查询该域。NS 与 SOA 查询均返回权威 `NXDOMAIN`（响应带 `aa` 标志），Authority 中仅为父区 `EU.ORG` 的 SOA，序列号仍为 `2026081406`；`dig +trace` 也在 EU.org 权威层结束，未出现目标域的委派 NS。故可以确认：截至本次直接权威查询，EU.org 父区尚未发布 `china-finance.eu.org` 的公开委派，不能绑定 Worker。
