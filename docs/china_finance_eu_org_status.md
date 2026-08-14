@@ -67,3 +67,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 最新复核中，Cloudflare 与 Google 的 NS、SOA 查询，以及 Cloudflare 的 A 查询仍全部返回 `Status: 3`（NXDOMAIN），Authority 仅包含 `eu.org` 的 SOA；两家解析器一致显示父区序列号更新至 `2026081405`。这说明父区继续变化，但 `china-finance.eu.org` 尚未获得公开 NS 委派，仍不能绑定到 Worker。
 
 再次检测中，Cloudflare 与 Google 对 NS、SOA 的结果，以及 Cloudflare 对 A 的结果继续一致为 `Status: 3`（NXDOMAIN）；父区 SOA 序列号进一步更新至 `2026081406`。因此仍未出现 `augustus.ns.cloudflare.com` 或 `deb.ns.cloudflare.com` 的公开委派，保持等待，不修改生产 DNS 或 Worker 域名设置。
+
+同轮在已登录 Cloudflare 控制台对 Zone 概览进行了只读复核。界面明确显示“正在等待注册机构传播新的名称服务器”，列出待委派的 `augustus.ns.cloudflare.com` 与 `deb.ns.cloudflare.com`，并显示当前“未连接 Workers”。Zone 仍为 Free 计划、DNS 设置为“完全”，但尚未激活；这一状态与两家公共解析器的 NXDOMAIN 结果一致。因此本轮未点击“连接 Worker”或修改任何域名配置。
