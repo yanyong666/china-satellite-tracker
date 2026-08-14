@@ -93,3 +93,7 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 最新直接向 `ns.eu.org` 的非递归 NS 查询仍返回带 `aa` 标志的 `NXDOMAIN`，但父区 SOA 序列号已从 `2026081406` 更新至 `2026081407`。这说明 EU.org 父区发生了新的区域发布，但该发布中尚未包含 `china-finance.eu.org` 的委派记录；仍不得执行 Worker 绑定。
 
 SOA 更新后，Cloudflare DNS over HTTPS 与 Google Public DNS 对目标域的 NS 查询均已观察到父区序列号 `2026081407`，但继续返回 `Status: 3`（NXDOMAIN），没有 NS Answer。第二台权威服务器 `gra.wolfhugel.eu` 也同步返回带 `aa` 标志的 NXDOMAIN 与同一 SOA 序列号，排除了单一权威节点滞后；当前仍未公开委派。
+
+后续直接向 `ns.eu.org` 发起的非递归 NS 查询显示，EU.org 父区 SOA 已再次更新至 `2026081408`，但目标域仍以 `aa` 标志返回 `NXDOMAIN`，未出现任何委派 NS。该上游发布更新同样未包含 `china-finance.eu.org` 的委派，继续禁止连接 Worker 或修改生产 DNS。
+
+SOA 更新至 `2026081408` 后，Cloudflare DNS over HTTPS 与 Google Public DNS 均已显示新序列号，但仍返回 `Status: 3`（NXDOMAIN）且没有目标域 NS Answer。第二台权威服务器 `gra.wolfhugel.eu` 亦带 `aa` 标志返回 NXDOMAIN 和 SOA `2026081408`，确认不是单一权威节点的同步差异；目前仍不得执行绑定。
