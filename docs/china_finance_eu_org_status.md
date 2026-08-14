@@ -87,3 +87,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 第四台 EU.org 权威名称服务器 `ns.bortzmeyer.eu.org` 也直接返回带 `aa` 标志的 `NXDOMAIN`，父区 SOA 仍为 `2026081406`。多个权威节点的持续一致性表明当前不存在局部节点同步差异，委派记录仍未发布。
 
 后续在已登录 Cloudflare 控制台只读打开 Zone 概览时，页面仍停留在“内容加载/正在加载”状态，未呈现可用的 Zone Active 或 Worker 连接状态。该未完成加载不作为状态改变证据；继续以已获得的权威 DNS NXDOMAIN 结论作为是否禁止绑定的依据，未进行任何控制台配置修改。
+
+在随后的完整加载复核中，Cloudflare Zone 概览明确显示“正在等待注册机构传播新的名称服务器”，并显示“未连接 Workers”；界面继续列出 `augustus.ns.cloudflare.com` 与 `deb.ns.cloudflare.com` 作为待传播的 Nameserver。这与权威 DNS 的 NXDOMAIN 一致，说明 Zone 仍未激活。本次仅进行查看，未点击“立即检查名称服务器”、未连接 Worker，也未修改 DNS。
