@@ -81,3 +81,5 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 为排除递归解析器缓存影响，本轮使用标准 DNS 工具直接向 EU.org 权威名称服务器 `ns.eu.org` 查询该域。NS 与 SOA 查询均返回权威 `NXDOMAIN`（响应带 `aa` 标志），Authority 中仅为父区 `EU.ORG` 的 SOA，序列号仍为 `2026081406`；`dig +trace` 也在 EU.org 权威层结束，未出现目标域的委派 NS。故可以确认：截至本次直接权威查询，EU.org 父区尚未发布 `china-finance.eu.org` 的公开委派，不能绑定 Worker。
 
 进一步向另一台 EU.org 权威名称服务器 `gra.wolfhugel.eu` 直接查询 NS，得到同样带 `aa` 标志的权威 `NXDOMAIN` 与父区 SOA `2026081406`。两台独立权威节点结果一致，未发现区域同步差异或已发布但未传播的委派记录。
+
+第三台 EU.org 权威名称服务器 `ns3.keltia.net` 的直接 NS 查询同样带 `aa` 标志返回 `NXDOMAIN`，Authority 仍仅为父区 SOA `2026081406`。至此三台不同权威节点的结果一致：目标域尚未在 EU.org 父区发布委派。
