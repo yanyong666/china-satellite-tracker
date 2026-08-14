@@ -89,3 +89,7 @@ Cloudflare 已于同日拉取并部署最新 GitHub 构建：`https://stock-term
 后续在已登录 Cloudflare 控制台只读打开 Zone 概览时，页面仍停留在“内容加载/正在加载”状态，未呈现可用的 Zone Active 或 Worker 连接状态。该未完成加载不作为状态改变证据；继续以已获得的权威 DNS NXDOMAIN 结论作为是否禁止绑定的依据，未进行任何控制台配置修改。
 
 在随后的完整加载复核中，Cloudflare Zone 概览明确显示“正在等待注册机构传播新的名称服务器”，并显示“未连接 Workers”；界面继续列出 `augustus.ns.cloudflare.com` 与 `deb.ns.cloudflare.com` 作为待传播的 Nameserver。这与权威 DNS 的 NXDOMAIN 一致，说明 Zone 仍未激活。本次仅进行查看，未点击“立即检查名称服务器”、未连接 Worker，也未修改 DNS。
+
+最新直接向 `ns.eu.org` 的非递归 NS 查询仍返回带 `aa` 标志的 `NXDOMAIN`，但父区 SOA 序列号已从 `2026081406` 更新至 `2026081407`。这说明 EU.org 父区发生了新的区域发布，但该发布中尚未包含 `china-finance.eu.org` 的委派记录；仍不得执行 Worker 绑定。
+
+SOA 更新后，Cloudflare DNS over HTTPS 与 Google Public DNS 对目标域的 NS 查询均已观察到父区序列号 `2026081407`，但继续返回 `Status: 3`（NXDOMAIN），没有 NS Answer。第二台权威服务器 `gra.wolfhugel.eu` 也同步返回带 `aa` 标志的 NXDOMAIN 与同一 SOA 序列号，排除了单一权威节点滞后；当前仍未公开委派。
