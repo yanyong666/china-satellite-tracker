@@ -97,3 +97,5 @@ SOA 更新后，Cloudflare DNS over HTTPS 与 Google Public DNS 对目标域的 
 后续直接向 `ns.eu.org` 发起的非递归 NS 查询显示，EU.org 父区 SOA 已再次更新至 `2026081408`，但目标域仍以 `aa` 标志返回 `NXDOMAIN`，未出现任何委派 NS。该上游发布更新同样未包含 `china-finance.eu.org` 的委派，继续禁止连接 Worker 或修改生产 DNS。
 
 SOA 更新至 `2026081408` 后，Cloudflare DNS over HTTPS 与 Google Public DNS 均已显示新序列号，但仍返回 `Status: 3`（NXDOMAIN）且没有目标域 NS Answer。第二台权威服务器 `gra.wolfhugel.eu` 亦带 `aa` 标志返回 NXDOMAIN 和 SOA `2026081408`，确认不是单一权威节点的同步差异；目前仍不得执行绑定。
+
+2026-08-15 的每日双公共解析器核验显示，Cloudflare DNS over HTTPS 与 Google Public DNS 对目标域的 **NS、SOA、A** 查询均返回 `Status: 3`（NXDOMAIN），且均没有 Answer。两者均已观察到 EU.org 父区 SOA 更新至 `2026081509`，说明父区又完成了一次发布；但该发布仍未包含 `china-finance.eu.org` 的 NS 委派，未解析出 A 记录，继续禁止绑定或修改生产 DNS。
