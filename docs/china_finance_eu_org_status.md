@@ -103,3 +103,8 @@ SOA 更新至 `2026081408` 后，Cloudflare DNS over HTTPS 与 Google Public DNS
 同日后续复核中，Cloudflare DNS over HTTPS 与 Google Public DNS 再次对 **NS、SOA、A** 三类记录交叉查询，六项结果仍全部为 `Status: 3`（NXDOMAIN），Answer 均为空，Authority 仅返回 EU.org 父区 SOA `2026081509`。同时直接向 `ns.eu.org` 发起的非递归 NS 查询继续返回带 `aa` 标志的权威 NXDOMAIN 与同一 SOA。两类查询均未出现 `augustus.ns.cloudflare.com` 或 `deb.ns.cloudflare.com`，因此继续等待外部委派；本轮未变更 Cloudflare DNS、Zone 或 Worker 自定义域配置。
 
 2026-08-16 的每日核验中，Cloudflare DNS over HTTPS 与 Google Public DNS 对 **NS、SOA、A** 的六项查询仍一致返回 `Status: 3`（NXDOMAIN），没有目标域 Answer；两者 Authority 均仅含 EU.org 父区 SOA，序列号已更新至 `2026081603`。直接向 `ns.eu.org` 查询 NS 同样带 `aa` 标志返回权威 NXDOMAIN 与相同 SOA，说明新的父区发布仍未包含目标域的委派记录。`augustus.ns.cloudflare.com` 与 `deb.ns.cloudflare.com` 均未出现，Cloudflare Zone 激活和 Worker 绑定条件尚未满足；每日任务保持 active，本轮未修改生产 DNS、Zone 或 Worker 配置。
+
+2026-08-17 的再次核验中，Cloudflare DNS over HTTPS 与 Google Public DNS 对目标域的 **NS、SOA、A** 查询仍全部返回 `Status: 3`（NXDOMAIN），Answer 均为空；两家解析器的 Authority 均仅返回 EU.org 父区 SOA，序列号更新至 `2026081700`。直接向 `ns.eu.org` 查询 NS 仍返回带 `aa` 标志的权威 NXDOMAIN 与同一 SOA。当前仍未出现 `augustus.ns.cloudflare.com` 或 `deb.ns.cloudflare.com`，因此不修改生产 DNS、Cloudflare Zone 或 Worker 绑定，继续等待公开委派。 
+
+> 本轮核验时间：2026-08-17；核验方式：Cloudflare DNS over HTTPS、Google Public DNS、EU.org 权威服务器 `ns.eu.org`。 
+
