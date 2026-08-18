@@ -1,0 +1,39 @@
+{
+  "baseUrl": "http://127.0.0.1:3000",
+  "results": [
+    {
+      "viewport": "1280x720",
+      "checks": {
+        "heading": true,
+        "liveStatus": true,
+        "realNewsSource": true,
+        "tickerItems": true,
+        "sentimentSummary": true,
+        "withinViewport": true,
+        "disclaimer": true
+      },
+      "pass": true,
+      "newsPreview": [
+        "中新网财经 RSS",
+        "中新网财经 RSS"
+      ]
+    },
+    {
+      "viewport": "375x812",
+      "checks": {
+        "heading": true,
+        "liveStatus": true,
+        "realNewsSource": true,
+        "tickerItems": true,
+        "sentimentSummary": true,
+        "withinViewport": true,
+        "disclaimer": true
+      },
+      "pass": true,
+      "newsPreview": [
+        "中新网财经 RSS",
+        "中新网财经 RSS"
+      ]
+    }
+  ]
+}

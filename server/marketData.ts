@@ -39,6 +39,84 @@ export type ResearchEvent = { title: string; date: string | null; type: "定期�
 export type ScoreFactor = { label: string; score: number; max: number; status: string };
 export type ResearchScore = { total: number; label: "观察较强" | "中性观察" | "风险观察"; factors: ScoreFactor[]; definition: string };
 
+export type MarketSentiment = {
+  sentiment: "偏强情绪" | "区间震荡" | "审慎观望";
+  score: number;
+  summary: string;
+  updatedAt: string;
+  sourceLabel: string;
+  sourceUrl: string;
+};
+
+export type TickerNewsItem = {
+  id: string;
+  time: string;
+  title: string;
+  source: string;
+  url: string;
+  tag: "政策披露" | "行业动态" | "财报公告" | "市场快讯";
+};
+
+export function getMarketSentiment(indexCount: number, positiveIndices: number): MarketSentiment {
+  const ratio = indexCount > 0 ? positiveIndices / indexCount : 0.5;
+  const sentiment = ratio >= 0.66 ? "偏强情绪" : ratio >= 0.33 ? "区间震荡" : "审慎观望";
+  return {
+    sentiment,
+    score: Math.round(50 + ratio * 35),
+    summary: `大盘指数多空交织，首期覆盖股票池随板块相对强弱维持公允波动；所有观点均基于交易所与权威财经公开披露。`,
+    updatedAt: new Date().toISOString(),
+    sourceLabel: "沪深交易所与公开市场披露",
+    sourceUrl: "https://www.sse.com.cn/",
+  };
+}
+
+function decodeXml(value: string) {
+  return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+}
+
+function classifyNews(title: string): TickerNewsItem["tag"] {
+  if (/业绩|财报|年报|年度报告|季报|公告|利润|营收/.test(title)) return "财报公告";
+  if (/政策|监管|央行|证监会|交易所|国资/.test(title)) return "政策披露";
+  if (/行情|指数|市场|股市|A股|涨停|资金/.test(title)) return "市场快讯";
+  return "行业动态";
+}
+
+export function parseFinanceRss(xml: string): TickerNewsItem[] {
+  const items = Array.from(xml.matchAll(/<item>([\s\S]*?)<\/item>/gi));
+  return items.flatMap((match, index) => {
+    const item = match[1];
+    const title = decodeXml(item.match(/<title>([\s\S]*?)<\/title>/i)?.[1] ?? "");
+    const url = decodeXml(item.match(/<link>([\s\S]*?)<\/link>/i)?.[1] ?? "");
+    const description = decodeXml(item.match(/<description>([\s\S]*?)<\/description>/i)?.[1] ?? "");
+    const pubDate = decodeXml(item.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] ?? "");
+    if (!title || !url) return [];
+    const timestamp = pubDate ? new Date(pubDate).toISOString() : new Date().toISOString();
+    return [{ id: `cn-finance-${index}-${timestamp}`, time: timestamp, title: description ? `${title} · ${description.slice(0, 48)}` : title, source: "中新网财经 RSS", url, tag: classifyNews(title) }];
+  });
+}
+
+export async function getMarketBriefing() {
+  const updatedAt = new Date().toISOString();
+  try {
+    const [rssResult, context] = await Promise.all([
+      fetch(financeRssUrl, { headers: { "User-Agent": "HuaxiaResearchTerminal/1.0" }, signal: AbortSignal.timeout(8_000) }),
+      getMarketContext(),
+    ]);
+    if (!rssResult.ok) throw new Error("公开财经 RSS 暂不可用");
+    const news = parseFinanceRss(await rssResult.text()).slice(0, 8);
+    const positive = context.indices.filter((index) => index.changePct >= 0).length;
+    return {
+      status: "live" as const,
+      news,
+      sentiment: getMarketSentiment(context.indices.length, positive),
+      updatedAt: context.updatedAt ?? updatedAt,
+      sourceUrl: financeRssUrl,
+    };
+  } catch {
+    return { status: "unavailable" as const, news: [], sentiment: null, updatedAt, sourceUrl: financeRssUrl };
+  }
+}
+
 export const STOCK_POOL: StockMeta[] = [
   { id: "china-satellite", code: "600118", market: "sh", name: "中国卫星", formalName: "中国东方红卫星股份有限公司", sector: "商业航天", sectorKey: "aerospace", events: [{ date: "2026-04-22", label: "一季报" }, { date: "2026-07-13", label: "业绩预告" }] },
   { id: "torch-electronics", code: "603678", market: "sh", name: "火炬电子", formalName: "福建火炬电子科技股份有限公司", sector: "军工电子", sectorKey: "defense-electronics", events: [] },
@@ -56,6 +134,7 @@ const quoteUrlFor = (stock: StockMeta) => `https://web.ifzq.gtimg.cn/appstock/ap
 const flowUrlFor = (stock: StockMeta) => `https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt=101&secid=${stock.market === "sh" ? 1 : 0}.${stock.code}&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65`;
 const indexQuoteUrl = "https://qt.gtimg.cn/q=s_sh000001,s_sz399006,s_sh000688";
 const northboundDisclosureUrl = "https://www.sse.com.cn/aboutus/mediacenter/hotandd/c/c_20240412_10753188.shtml";
+const financeRssUrl = "https://www.chinanews.com.cn/rss/finance.xml";
 const emptyBreakdown: FlowBreakdown = { main: null, superLarge: null, large: null, medium: null, small: null };
 
 export function getStock(stockId: StockId) {

@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { listUserSavedStocks, removeUserStock, saveUserStock } from "./db";
-import { getMarketContext, getMarketData, getMarketOverview, getResearchProfile, STOCK_POOL } from "./marketData";
+import { getMarketBriefing, getMarketContext, getMarketData, getMarketOverview, getResearchProfile, STOCK_POOL } from "./marketData";
 import { z } from "zod";
 
 const stockIdSchema = z.enum(["china-satellite", "torch-electronics", "naura", "zhongji-innolight", "catl"]);
@@ -25,6 +25,7 @@ export const appRouter = router({
   tracker: router({
     universe: publicProcedure.query(() => STOCK_POOL),
     context: publicProcedure.query(() => getMarketContext()),
+    briefing: publicProcedure.query(() => getMarketBriefing()),
     overview: publicProcedure.query(() => getMarketOverview()),
     market: publicProcedure.input(z.object({ stockId: stockIdSchema })).query(({ input }) => getMarketData(input.stockId)),
     research: publicProcedure.input(z.object({ stockId: stockIdSchema })).query(({ input }) => getResearchProfile(input.stockId)),
