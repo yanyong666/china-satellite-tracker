@@ -1,0 +1,20 @@
+{
+  "viewport": "375x812",
+  "url": "http://127.0.0.1:3000/terminal",
+  "checks": {
+    "loadedTerminal": true,
+    "homeLinkVisible": true,
+    "tabsVisible": true,
+    "marketVisible": true,
+    "favoriteVisible": true,
+    "disclaimerVisible": true,
+    "tabSwitch": true,
+    "homeNavigation": true
+  },
+  "textSample": [
+    "返回首页",
+    "收藏到工作台",
+    "所有数据均来自公开披露，不构成投资建议。"
+  ],
+  "pass": true
+}

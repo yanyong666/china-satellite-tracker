@@ -211,3 +211,24 @@ button, a { -webkit-tap-highlight-color: transparent; }
     }
   }
 }
+
+/* Cross-state terminal theme: the loading branch renders before Home's local style blocks. */
+.terminal-loading {
+  background: radial-gradient(circle at 78% 18%, rgba(197, 255, 87, 0.14), transparent 28%), #07100e !important;
+  color: #eff7ed !important;
+}
+.terminal-loading-frame {
+  border-color: rgba(197, 255, 87, 0.22) !important;
+  background: linear-gradient(145deg, rgba(17, 43, 31, 0.62), rgba(5, 14, 12, 0.72)) !important;
+}
+.terminal-loading-frame::before {
+  background-image: linear-gradient(rgba(197, 255, 87, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(197, 255, 87, 0.08) 1px, transparent 1px) !important;
+}
+.loading-brand > span { background: #c5ff57 !important; color: #07100e !important; }
+.loading-brand small, .loading-card .overline { color: #c5ff57 !important; }
+.loading-card h1 { color: #eff7ed !important; }
+.loading-card p { color: #8da296 !important; }
+.loading-indicator { color: #c5ff57 !important; }
+.loading-indicator i { background: #c5ff57 !important; }
+.loading-return { color: #c5ff57 !important; }
+.loading-note { color: #6e8978 !important; }
