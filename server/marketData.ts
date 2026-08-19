@@ -415,7 +415,7 @@ export async function getMarketData(stockId: StockId) {
   const flow = flowResult.status === "fulfilled" && flowResult.value.ok
     ? parseFundFlow(await flowResult.value.json(), flowUrl)
     : { asOf: null, latestMainNet: null, rolling5: null, rolling10: null, breakdown: emptyBreakdown, sourceUrl: flowUrl };
-  return { stock, ...quote, flow, score: calculateResearchScore(quote.snapshot, quote.technical, flow, getResearchProfile(stockId)) };
+  return { stock, ...quote, bars: quote.bars.slice(-15), flow, score: calculateResearchScore(quote.snapshot, quote.technical, flow, getResearchProfile(stockId)) };
 }
 
 export async function getMarketOverview() {
