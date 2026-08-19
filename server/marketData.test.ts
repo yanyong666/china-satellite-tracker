@@ -60,14 +60,16 @@ describe("multi-stock market data", () => {
     expect(news[0]?.time).toContain("2026-08-18T09:04:34");
   });
 
-  it("keeps AI daily summary output short, sourced and non-advisory", () => {
+  it("keeps AI daily summary output short, sourced, non-advisory and includes sector movers", () => {
     const fallback = getFallbackDailyAiSummary(new Date("2026-08-18T00:00:00.000Z"));
     expect(fallback.status).toBe("fallback");
     expect(fallback.model).toBe("fallback-rule-engine");
     expect(fallback.summaryText).toContain("所有数据均来自公开披露，不构成投资建议");
+    expect(fallback.sectorMover).toBeTruthy();
     expect(isValidDailyAiSummary(fallback)).toBe(true);
-    expect(isValidDailyAiSummary({ summaryText: "缺少免责声明", keyTheme: "测试" })).toBe(false);
-    expect(isValidDailyAiSummary({ summaryText: `${"过长".repeat(130)}所有数据均来自公开披露，不构成投资建议`, keyTheme: "测试" })).toBe(false);
+    expect(isValidDailyAiSummary({ summaryText: "缺少免责声明", keyTheme: "测试", sectorMover: "半导体" })).toBe(false);
+    expect(isValidDailyAiSummary({ summaryText: `${"过长".repeat(130)}所有数据均来自公开披露，不构成投资建议`, keyTheme: "测试", sectorMover: "半导体" })).toBe(false);
+    expect(isValidDailyAiSummary({ summaryText: "所有数据均来自公开披露，不构成投资建议", keyTheme: "测试" })).toBe(false);
   });
 
   it("computes market sentiment only from supplied index breadth and keeps its source explicit", () => {

@@ -23,6 +23,7 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 375, height: 812 
     result.checks.aiSummaryCard = await page.locator(".ai-summary-card").count() === 1;
     result.checks.aiSummaryState = text.includes("AI 实时生成") || text.includes("规则兜底生成") || text.includes("AI 生成中");
     result.checks.aiSummaryTheme = (await page.locator(".ai-summary-head strong").textContent())?.trim().length > 0;
+    result.checks.sectorMover = (await page.locator(".sector-mover-badge").textContent())?.includes("板块异动") ?? false;
     const aiSummaryModelText = await page.locator(".ai-summary-model").textContent();
     result.checks.aiSummaryModel = Boolean(aiSummaryModelText && /模型：(?:gpt-5-mini|fallback-rule-engine|待连接)/.test(aiSummaryModelText));
     result.checks.aiSummaryDisclaimer = text.includes("所有数据均来自公开披露，不构成投资建议");

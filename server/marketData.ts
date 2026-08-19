@@ -101,6 +101,7 @@ export type DailyAiSummary = {
   status: "live" | "fallback";
   summaryText: string;
   keyTheme: string;
+  sectorMover: string;
   generatedAt: string;
   model: string;
 };
@@ -120,15 +121,16 @@ export function getFallbackDailyAiSummary(now = new Date()): DailyAiSummary {
     status: "fallback",
     summaryText: "今日市场延续常态化信息披露与板块轮动。指数与资金面保持区间观察，重点关注首期股票池核心标的的定期报告、业绩预告及宏观政策动向。所有数据均来自公开披露，不构成投资建议。",
     keyTheme: "常态运行与区间观察",
+    sectorMover: "商业航天 / 半导体轮动",
     generatedAt: now.toISOString(),
     model: "fallback-rule-engine",
   };
 }
 
-export function isValidDailyAiSummary(value: unknown): value is { summaryText: string; keyTheme: string } {
+export function isValidDailyAiSummary(value: unknown): value is { summaryText: string; keyTheme: string; sectorMover: string } {
   if (!value || typeof value !== "object") return false;
-  const candidate = value as { summaryText?: unknown; keyTheme?: unknown };
-  return typeof candidate.summaryText === "string" && candidate.summaryText.length > 0 && candidate.summaryText.length <= 240 && candidate.summaryText.includes("所有数据均来自公开披露，不构成投资建议") && typeof candidate.keyTheme === "string" && candidate.keyTheme.length > 0 && candidate.keyTheme.length <= 32;
+  const candidate = value as { summaryText?: unknown; keyTheme?: unknown; sectorMover?: unknown };
+  return typeof candidate.summaryText === "string" && candidate.summaryText.length > 0 && candidate.summaryText.length <= 240 && candidate.summaryText.includes("所有数据均来自公开披露，不构成投资建议") && typeof candidate.keyTheme === "string" && candidate.keyTheme.length > 0 && candidate.keyTheme.length <= 32 && typeof candidate.sectorMover === "string" && candidate.sectorMover.length > 0 && candidate.sectorMover.length <= 24;
 }
 
 async function generateDailyAiSummary(news: TickerNewsItem[], sentiment: MarketSentiment | null): Promise<DailyAiSummary> {
@@ -146,7 +148,7 @@ async function generateDailyAiSummary(news: TickerNewsItem[], sentiment: MarketS
       messages: [
         {
           role: "system",
-          content: "你是一位严谨、克制的 A 股资深研究员。请根据当天提供的公开财经新闻与市场情绪摘要，用 2-3 句话（不超过 120 字）写一段简短、专业的每日市场总结。规则：1. 必须客观中立，严禁预测收益、保证涨跌或构成投资建议；2. 必须提及“所有数据均来自公开披露，不构成投资建议”；3. 输出纯 JSON 对象，格式为 {\"summaryText\": \"...\", \"keyTheme\": \"...\"}。",
+          content: "你是一位严谨、克制的 A 股资深研究员。请根据当天提供的公开财经新闻与市场情绪摘要，提取当天表现最活跃或受关注度最高的行业板块作为“板块异动”，并用 2-3 句话（不超过 120 字）写一段简短、专业的每日市场总结。规则：1. 必须客观中立，严禁预测收益、保证涨跌或构成投资建议；2. 必须提及“所有数据均来自公开披露，不构成投资建议”；3. 输出纯 JSON 对象，格式为 {\"summaryText\": \"...\", \"keyTheme\": \"...\", \"sectorMover\": \"...\"}。",
         },
         {
           role: "user",
@@ -160,8 +162,8 @@ async function generateDailyAiSummary(news: TickerNewsItem[], sentiment: MarketS
           strict: true,
           schema: {
             type: "object",
-            properties: { summaryText: { type: "string" }, keyTheme: { type: "string" } },
-            required: ["summaryText", "keyTheme"],
+            properties: { summaryText: { type: "string" }, keyTheme: { type: "string" }, sectorMover: { type: "string" } },
+            required: ["summaryText", "keyTheme", "sectorMover"],
             additionalProperties: false,
           },
         },
@@ -179,6 +181,7 @@ async function generateDailyAiSummary(news: TickerNewsItem[], sentiment: MarketS
       status: "live",
       summaryText: String(parsed.summaryText),
       keyTheme: String(parsed.keyTheme),
+      sectorMover: String(parsed.sectorMover),
       generatedAt: new Date().toISOString(),
       model: response.model || "gpt-5-mini",
     };
