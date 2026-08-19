@@ -37,6 +37,16 @@ export type SavedStockRow = {
   created_at: number;
 };
 
+export type DailySummaryRow = {
+  summary_date: string;
+  summary_text: string;
+  key_theme: string;
+  sector_mover: string;
+  status: "live" | "fallback";
+  model: string;
+  generated_at: number;
+};
+
 // Cloudflare Workers Web Crypto 当前支持 PBKDF2 至多 100,000 次迭代。
 const PASSWORD_ITERATIONS = 100_000;
 const SESSION_COOKIE_NAME = "hx_member_session";
@@ -216,6 +226,39 @@ export function createMemberRepository(db: D1Database) {
         .prepare("DELETE FROM saved_stocks WHERE email = ? AND stock_id = ?")
         .bind(email, stockId)
         .run();
+    },
+
+    async upsertDailySummary(summary: DailySummaryRow) {
+      await db.prepare(
+        `INSERT INTO daily_market_summaries
+          (summary_date, summary_text, key_theme, sector_mover, status, model, generated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(summary_date) DO UPDATE SET
+           summary_text = excluded.summary_text,
+           key_theme = excluded.key_theme,
+           sector_mover = excluded.sector_mover,
+           status = excluded.status,
+           model = excluded.model,
+           generated_at = excluded.generated_at`,
+      ).bind(
+        summary.summary_date,
+        summary.summary_text,
+        summary.key_theme,
+        summary.sector_mover,
+        summary.status,
+        summary.model,
+        summary.generated_at,
+      ).run();
+    },
+
+    async listDailySummaries(limit = 7): Promise<DailySummaryRow[]> {
+      const result = await db.prepare(
+        `SELECT summary_date, summary_text, key_theme, sector_mover, status, model, generated_at
+         FROM daily_market_summaries
+         ORDER BY summary_date DESC
+         LIMIT ?`,
+      ).bind(Math.min(Math.max(limit, 1), 7)).all<DailySummaryRow>();
+      return result.results;
     },
   };
 }

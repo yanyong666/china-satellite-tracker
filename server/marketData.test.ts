@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateResearchScore, getChartMarkers, getFallbackDailyAiSummary, getMarketSentiment, getNorthboundDisclosure, getResearchProfile, getTechnicalSummary, isValidDailyAiSummary, parseDailyBars, parseFinanceRss, parseFundFlow, parseIndexQuotes, parseQuote, STOCK_POOL } from "./marketData";
+import { calculateResearchScore, getChartMarkers, getFallbackDailyAiSummary, getMarketSentiment, getNorthboundDisclosure, getResearchProfile, getShanghaiDateKey, getTechnicalSummary, isValidDailyAiSummary, parseDailyBars, parseFinanceRss, parseFundFlow, parseIndexQuotes, parseQuote, STOCK_POOL } from "./marketData";
 import { getIndexAvailability, getTerminalMarketState } from "../client/src/lib/marketContextState";
 import { buildSectorSummaries, getEventStatus, getPublicModuleState } from "../client/src/lib/terminalResearch";
 
@@ -70,6 +70,10 @@ describe("multi-stock market data", () => {
     expect(isValidDailyAiSummary({ summaryText: "缺少免责声明", keyTheme: "测试", sectorMover: "半导体" })).toBe(false);
     expect(isValidDailyAiSummary({ summaryText: `${"过长".repeat(130)}所有数据均来自公开披露，不构成投资建议`, keyTheme: "测试", sectorMover: "半导体" })).toBe(false);
     expect(isValidDailyAiSummary({ summaryText: "所有数据均来自公开披露，不构成投资建议", keyTheme: "测试" })).toBe(false);
+  });
+
+  it("uses Shanghai business dates for persisted summary keys", () => {
+    expect(getShanghaiDateKey(new Date("2026-08-18T16:30:00.000Z"))).toBe("2026-08-19");
   });
 
   it("computes market sentiment only from supplied index breadth and keeps its source explicit", () => {

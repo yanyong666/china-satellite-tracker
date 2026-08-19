@@ -3,8 +3,8 @@ import { initTRPC } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z } from "zod";
-import { getDailyMarketSummary, getMarketBriefing, getMarketContext, getMarketData, getMarketOverview, getResearchProfile, STOCK_POOL } from "./marketData";
-import { createPasswordRecord, destroyMemberSession, normalizeMemberEmail, requireMemberRepository, requireSessionMember, startMemberSession, validateMemberPassword, verifyPassword, type WorkerEnv } from "./cloudflare-member";
+import { getDailyMarketSummary, getMarketBriefing, getMarketContext, getMarketData, getMarketOverview, getResearchProfile, getShanghaiDateKey, STOCK_POOL, type DailyAiSummary } from "./marketData";
+import { createPasswordRecord, destroyMemberSession, normalizeMemberEmail, requireMemberRepository, requireSessionMember, startMemberSession, validateMemberPassword, verifyPassword, type DailySummaryRow, type WorkerEnv } from "./cloudflare-member";
 
 type WorkerContext = {
   request: Request;
@@ -15,13 +15,56 @@ type WorkerContext = {
 const t = initTRPC.context<WorkerContext>().create({ transformer: superjson });
 const stockId = z.enum(["china-satellite", "torch-electronics", "naura", "zhongji-innolight", "catl"]);
 
+type PublicSummaryHistoryItem = DailyAiSummary & { date: string };
+
+async function getAndPersistDailySummary(env: WorkerEnv): Promise<DailyAiSummary> {
+  const summary = await getDailyMarketSummary();
+  if (!env.MEMBER_DB) return summary;
+  try {
+    const repository = requireMemberRepository(env);
+    const row: DailySummaryRow = {
+      summary_date: getShanghaiDateKey(new Date(summary.generatedAt)),
+      summary_text: summary.summaryText,
+      key_theme: summary.keyTheme,
+      sector_mover: summary.sectorMover,
+      status: summary.status,
+      model: summary.model,
+      generated_at: Math.floor(new Date(summary.generatedAt).getTime() / 1000),
+    };
+    await repository.upsertDailySummary(row);
+  } catch {
+    // 历史表尚未迁移或 D1 短暂不可用时，公开总结仍可用，但不伪造历史记录。
+  }
+  return summary;
+}
+
+async function getPersistedDailySummaryHistory(env: WorkerEnv): Promise<PublicSummaryHistoryItem[]> {
+  const today = await getAndPersistDailySummary(env);
+  if (!env.MEMBER_DB) return [{ ...today, date: getShanghaiDateKey(new Date(today.generatedAt)) }];
+  try {
+    const rows = await requireMemberRepository(env).listDailySummaries(7);
+    return rows.map(row => ({
+      status: row.status,
+      summaryText: row.summary_text,
+      keyTheme: row.key_theme,
+      sectorMover: row.sector_mover,
+      generatedAt: new Date(row.generated_at * 1000).toISOString(),
+      model: row.model,
+      date: row.summary_date,
+    }));
+  } catch {
+    return [{ ...today, date: getShanghaiDateKey(new Date(today.generatedAt)) }];
+  }
+}
+
 /** 公开研究接口保持在 /api/trpc，永不要求会员登录。 */
 export const publicWorkerRouter = t.router({
   tracker: t.router({
     universe: t.procedure.query(() => STOCK_POOL),
     context: t.procedure.query(() => getMarketContext()),
     briefing: t.procedure.query(() => getMarketBriefing()),
-    dailySummary: t.procedure.query(() => getDailyMarketSummary()),
+    dailySummary: t.procedure.query(({ ctx }) => getAndPersistDailySummary(ctx.env)),
+    dailySummaryHistory: t.procedure.query(({ ctx }) => getPersistedDailySummaryHistory(ctx.env)),
     overview: t.procedure.query(() => getMarketOverview()),
     market: t.procedure.input(z.object({ stockId })).query(({ input }) => getMarketData(input.stockId)),
     research: t.procedure.input(z.object({ stockId })).query(({ input }) => getResearchProfile(input.stockId)),

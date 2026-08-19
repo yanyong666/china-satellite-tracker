@@ -24,6 +24,17 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 375, height: 812 
     result.checks.aiSummaryState = text.includes("AI 实时生成") || text.includes("规则兜底生成") || text.includes("AI 生成中");
     result.checks.aiSummaryTheme = (await page.locator(".ai-summary-head strong").textContent())?.trim().length > 0;
     result.checks.sectorMover = (await page.locator(".sector-mover-badge").textContent())?.includes("板块异动") ?? false;
+    result.checks.historyToggle = await page.locator(".summary-history-toggle").count() === 1;
+    await page.locator(".summary-history-toggle").click();
+    await page.waitForSelector(".summary-history-body", { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const body = document.querySelector(".summary-history-body");
+      return Boolean(body && !body.textContent?.includes("正在读取最近一周的公开总结记录"));
+    }, undefined, { timeout: 20000 });
+    const historyText = await page.locator(".summary-history-body").innerText();
+    result.checks.historyPanel = historyText.includes("模型：") || historyText.includes("暂无可核验");
+    result.checks.historyItems = await page.locator(".summary-history-item").count() > 0;
+    result.checks.historyStatus = historyText.includes("AI 实时生成") || historyText.includes("规则兜底") || historyText.includes("暂无可核验");
     const aiSummaryModelText = await page.locator(".ai-summary-model").textContent();
     result.checks.aiSummaryModel = Boolean(aiSummaryModelText && /模型：(?:gpt-5-mini|fallback-rule-engine|待连接)/.test(aiSummaryModelText));
     result.checks.aiSummaryDisclaimer = text.includes("所有数据均来自公开披露，不构成投资建议");
@@ -31,6 +42,7 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 375, height: 812 
     result.checks.disclaimer = text.includes("不预测收益或构成投资建议");
     result.pass = Object.values(result.checks).every(Boolean);
     result.newsPreview = text.split("\n").filter((line) => line.includes("中新网财经 RSS")).slice(0, 2);
+    result.historyPreview = historyText.split("\n").slice(0, 6);
   } catch (error) {
     result.pass = false;
     result.error = error instanceof Error ? error.message : String(error);

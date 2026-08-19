@@ -108,12 +108,12 @@ export type DailyAiSummary = {
 
 let dailyAiSummaryCache: { key: string; value: DailyAiSummary } | null = null;
 
-function currentShanghaiDay() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+export function getShanghaiDateKey(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 
 function getDailySummaryCacheKey(news: TickerNewsItem[], sentiment: MarketSentiment | null) {
-  return `${currentShanghaiDay()}|${sentiment?.sentiment ?? "none"}|${sentiment?.score ?? "none"}|${news.slice(0, 5).map((item) => item.id).join(",")}`;
+  return `${getShanghaiDateKey()}|${sentiment?.sentiment ?? "none"}|${sentiment?.score ?? "none"}|${news.slice(0, 5).map((item) => item.id).join(",")}`;
 }
 
 export function getFallbackDailyAiSummary(now = new Date()): DailyAiSummary {
@@ -231,6 +231,11 @@ export async function getDailyMarketSummary() {
   const data = await fetchMarketBriefingData();
   if (data.status !== "live" || !data.sentiment || data.news.length === 0) return getFallbackDailyAiSummary();
   return generateDailyAiSummary(data.news, data.sentiment);
+}
+
+export async function getDailySummaryHistory(): Promise<Array<DailyAiSummary & { date: string }>> {
+  const todaySummary = await getDailyMarketSummary();
+  return [{ ...todaySummary, date: getShanghaiDateKey(new Date(todaySummary.generatedAt)) }];
 }
 
 export const STOCK_POOL: StockMeta[] = [

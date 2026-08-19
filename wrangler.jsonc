@@ -13,7 +13,8 @@
     {
       "binding": "MEMBER_DB",
       "database_name": "stock-terminal-members",
-      "database_id": "80f1a88c-850c-4393-a93b-960729d53058"
+      "database_id": "80f1a88c-850c-4393-a93b-960729d53058",
+      "migrations_dir": "./cloudflare/migrations"
     }
   ]
 }

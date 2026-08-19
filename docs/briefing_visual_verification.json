@@ -13,6 +13,10 @@
         "aiSummaryState": true,
         "aiSummaryTheme": true,
         "sectorMover": true,
+        "historyToggle": true,
+        "historyPanel": true,
+        "historyItems": true,
+        "historyStatus": true,
         "aiSummaryModel": true,
         "aiSummaryDisclaimer": true,
         "withinViewport": true,
@@ -22,6 +26,14 @@
       "newsPreview": [
         "中新网财经 RSS",
         "中新网财经 RSS"
+      ],
+      "historyPreview": [
+        "2026-08-19",
+        "AI 实时生成",
+        "区域产业升级与消费拉动",
+        "板块异动：食品饮料、基建/轨道交通、地方产业",
+        "",
+        "大盘多空交织，市场处于审慎观望。海南与辽宁的产业动向、基建工程推进及消暑食品出口需求上升，带动消费与基建板块关注度上升。所有数据均来自公开披露，不构成投资建议。"
       ]
     },
     {
@@ -36,6 +48,10 @@
         "aiSummaryState": true,
         "aiSummaryTheme": true,
         "sectorMover": true,
+        "historyToggle": true,
+        "historyPanel": true,
+        "historyItems": true,
+        "historyStatus": true,
         "aiSummaryModel": true,
         "aiSummaryDisclaimer": true,
         "withinViewport": true,
@@ -45,6 +61,14 @@
       "newsPreview": [
         "中新网财经 RSS",
         "中新网财经 RSS"
+      ],
+      "historyPreview": [
+        "2026-08-19",
+        "AI 实时生成",
+        "区域产业升级与消费拉动",
+        "板块异动：食品饮料、基建/轨道交通、地方产业",
+        "",
+        "大盘多空交织，市场处于审慎观望。海南与辽宁的产业动向、基建工程推进及消暑食品出口需求上升，带动消费与基建板块关注度上升。所有数据均来自公开披露，不构成投资建议。"
       ]
     }
   ]
