@@ -9,6 +9,11 @@
         "realNewsSource": true,
         "tickerItems": true,
         "sentimentSummary": true,
+        "aiSummaryCard": true,
+        "aiSummaryState": true,
+        "aiSummaryTheme": true,
+        "aiSummaryModel": true,
+        "aiSummaryDisclaimer": true,
         "withinViewport": true,
         "disclaimer": true
       },
@@ -26,6 +31,11 @@
         "realNewsSource": true,
         "tickerItems": true,
         "sentimentSummary": true,
+        "aiSummaryCard": true,
+        "aiSummaryState": true,
+        "aiSummaryTheme": true,
+        "aiSummaryModel": true,
+        "aiSummaryDisclaimer": true,
         "withinViewport": true,
         "disclaimer": true
       },

@@ -1,4 +1,6 @@
 export type MarketPrefix = "sh" | "sz";
+import { invokeLLM } from "./_core/llm";
+
 export type StockId = "china-satellite" | "torch-electronics" | "naura" | "zhongji-innolight" | "catl";
 
 export type StockMeta = {
@@ -95,7 +97,107 @@ export function parseFinanceRss(xml: string): TickerNewsItem[] {
   });
 }
 
-export async function getMarketBriefing() {
+export type DailyAiSummary = {
+  status: "live" | "fallback";
+  summaryText: string;
+  keyTheme: string;
+  generatedAt: string;
+  model: string;
+};
+
+let dailyAiSummaryCache: { key: string; value: DailyAiSummary } | null = null;
+
+function currentShanghaiDay() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+function getDailySummaryCacheKey(news: TickerNewsItem[], sentiment: MarketSentiment | null) {
+  return `${currentShanghaiDay()}|${sentiment?.sentiment ?? "none"}|${sentiment?.score ?? "none"}|${news.slice(0, 5).map((item) => item.id).join(",")}`;
+}
+
+export function getFallbackDailyAiSummary(now = new Date()): DailyAiSummary {
+  return {
+    status: "fallback",
+    summaryText: "今日市场延续常态化信息披露与板块轮动。指数与资金面保持区间观察，重点关注首期股票池核心标的的定期报告、业绩预告及宏观政策动向。所有数据均来自公开披露，不构成投资建议。",
+    keyTheme: "常态运行与区间观察",
+    generatedAt: now.toISOString(),
+    model: "fallback-rule-engine",
+  };
+}
+
+export function isValidDailyAiSummary(value: unknown): value is { summaryText: string; keyTheme: string } {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as { summaryText?: unknown; keyTheme?: unknown };
+  return typeof candidate.summaryText === "string" && candidate.summaryText.length > 0 && candidate.summaryText.length <= 240 && candidate.summaryText.includes("所有数据均来自公开披露，不构成投资建议") && typeof candidate.keyTheme === "string" && candidate.keyTheme.length > 0 && candidate.keyTheme.length <= 32;
+}
+
+async function generateDailyAiSummary(news: TickerNewsItem[], sentiment: MarketSentiment | null): Promise<DailyAiSummary> {
+  const fallbackSummary = getFallbackDailyAiSummary();
+
+  try {
+    const cacheKey = getDailySummaryCacheKey(news, sentiment);
+    if (dailyAiSummaryCache?.key === cacheKey) return dailyAiSummaryCache.value;
+    const newsSnippets = news.slice(0, 5).map((item, index) => `${index + 1}. [${item.tag}] ${item.title}（来源：${item.source}，发布时间：${item.time}）`).join("\n");
+    const sentimentText = sentiment ? `市场情绪标签：${sentiment.sentiment}（分值：${sentiment.score}/100），摘要：${sentiment.summary}` : "市场情绪：暂无实时指数广度。";
+    
+    const response = await invokeLLM({
+      model: "gpt-5-mini",
+      maxCompletionTokens: 320,
+      messages: [
+        {
+          role: "system",
+          content: "你是一位严谨、克制的 A 股资深研究员。请根据当天提供的公开财经新闻与市场情绪摘要，用 2-3 句话（不超过 120 字）写一段简短、专业的每日市场总结。规则：1. 必须客观中立，严禁预测收益、保证涨跌或构成投资建议；2. 必须提及“所有数据均来自公开披露，不构成投资建议”；3. 输出纯 JSON 对象，格式为 {\"summaryText\": \"...\", \"keyTheme\": \"...\"}。",
+        },
+        {
+          role: "user",
+          content: `请为今日终端生成每日总结。\n${sentimentText}\n\n公开新闻：\n${newsSnippets || "暂无实时新闻 headlines"}`,
+        },
+      ],
+      responseFormat: {
+        type: "json_schema",
+        json_schema: {
+          name: "daily_market_summary",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: { summaryText: { type: "string" }, keyTheme: { type: "string" } },
+            required: ["summaryText", "keyTheme"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const rawContent = response.choices[0]?.message.content;
+    const text = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => (p.type === "text" ? p.text : "")).join("") : "";
+    if (!text) return fallbackSummary;
+
+    const parsed = JSON.parse(text);
+    if (!isValidDailyAiSummary(parsed)) return fallbackSummary;
+
+    const summary: DailyAiSummary = {
+      status: "live",
+      summaryText: String(parsed.summaryText),
+      keyTheme: String(parsed.keyTheme),
+      generatedAt: new Date().toISOString(),
+      model: response.model || "gpt-5-mini",
+    };
+    dailyAiSummaryCache = { key: getDailySummaryCacheKey(news, sentiment), value: summary };
+    return summary;
+  } catch {
+    return fallbackSummary;
+  }
+}
+
+type MarketBriefingData = {
+  status: "live" | "unavailable";
+  news: TickerNewsItem[];
+  sentiment: MarketSentiment | null;
+  updatedAt: string;
+  sourceUrl: string;
+};
+
+async function fetchMarketBriefingData(): Promise<MarketBriefingData> {
   const updatedAt = new Date().toISOString();
   try {
     const [rssResult, context] = await Promise.all([
@@ -106,15 +208,26 @@ export async function getMarketBriefing() {
     const news = parseFinanceRss(await rssResult.text()).slice(0, 8);
     const positive = context.indices.filter((index) => index.changePct >= 0).length;
     return {
-      status: "live" as const,
+      status: "live",
       news,
       sentiment: getMarketSentiment(context.indices.length, positive),
       updatedAt: context.updatedAt ?? updatedAt,
       sourceUrl: financeRssUrl,
     };
   } catch {
-    return { status: "unavailable" as const, news: [], sentiment: null, updatedAt, sourceUrl: financeRssUrl };
+    return { status: "unavailable", news: [], sentiment: null, updatedAt, sourceUrl: financeRssUrl };
   }
+}
+
+export async function getMarketBriefing() {
+  const data = await fetchMarketBriefingData();
+  return { ...data, aiSummary: getFallbackDailyAiSummary() };
+}
+
+export async function getDailyMarketSummary() {
+  const data = await fetchMarketBriefingData();
+  if (data.status !== "live" || !data.sentiment || data.news.length === 0) return getFallbackDailyAiSummary();
+  return generateDailyAiSummary(data.news, data.sentiment);
 }
 
 export const STOCK_POOL: StockMeta[] = [

@@ -3,7 +3,7 @@ import { initTRPC } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z } from "zod";
-import { getMarketBriefing, getMarketContext, getMarketData, getMarketOverview, getResearchProfile, STOCK_POOL } from "./marketData";
+import { getDailyMarketSummary, getMarketBriefing, getMarketContext, getMarketData, getMarketOverview, getResearchProfile, STOCK_POOL } from "./marketData";
 import { createPasswordRecord, destroyMemberSession, normalizeMemberEmail, requireMemberRepository, requireSessionMember, startMemberSession, validateMemberPassword, verifyPassword, type WorkerEnv } from "./cloudflare-member";
 
 type WorkerContext = {
@@ -21,6 +21,7 @@ export const publicWorkerRouter = t.router({
     universe: t.procedure.query(() => STOCK_POOL),
     context: t.procedure.query(() => getMarketContext()),
     briefing: t.procedure.query(() => getMarketBriefing()),
+    dailySummary: t.procedure.query(() => getDailyMarketSummary()),
     overview: t.procedure.query(() => getMarketOverview()),
     market: t.procedure.input(z.object({ stockId })).query(({ input }) => getMarketData(input.stockId)),
     research: t.procedure.input(z.object({ stockId })).query(({ input }) => getResearchProfile(input.stockId)),

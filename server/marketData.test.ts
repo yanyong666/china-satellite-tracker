@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateResearchScore, getChartMarkers, getMarketSentiment, getNorthboundDisclosure, getResearchProfile, getTechnicalSummary, parseDailyBars, parseFinanceRss, parseFundFlow, parseIndexQuotes, parseQuote, STOCK_POOL } from "./marketData";
+import { calculateResearchScore, getChartMarkers, getFallbackDailyAiSummary, getMarketSentiment, getNorthboundDisclosure, getResearchProfile, getTechnicalSummary, isValidDailyAiSummary, parseDailyBars, parseFinanceRss, parseFundFlow, parseIndexQuotes, parseQuote, STOCK_POOL } from "./marketData";
 import { getIndexAvailability, getTerminalMarketState } from "../client/src/lib/marketContextState";
 import { buildSectorSummaries, getEventStatus, getPublicModuleState } from "../client/src/lib/terminalResearch";
 
@@ -58,6 +58,16 @@ describe("multi-stock market data", () => {
     expect(news).toHaveLength(1);
     expect(news[0]).toMatchObject({ title: "上市公司发布年度报告 · 公开公告摘要", source: "中新网财经 RSS", url: "https://example.test/news/1", tag: "财报公告" });
     expect(news[0]?.time).toContain("2026-08-18T09:04:34");
+  });
+
+  it("keeps AI daily summary output short, sourced and non-advisory", () => {
+    const fallback = getFallbackDailyAiSummary(new Date("2026-08-18T00:00:00.000Z"));
+    expect(fallback.status).toBe("fallback");
+    expect(fallback.model).toBe("fallback-rule-engine");
+    expect(fallback.summaryText).toContain("所有数据均来自公开披露，不构成投资建议");
+    expect(isValidDailyAiSummary(fallback)).toBe(true);
+    expect(isValidDailyAiSummary({ summaryText: "缺少免责声明", keyTheme: "测试" })).toBe(false);
+    expect(isValidDailyAiSummary({ summaryText: `${"过长".repeat(130)}所有数据均来自公开披露，不构成投资建议`, keyTheme: "测试" })).toBe(false);
   });
 
   it("computes market sentiment only from supplied index breadth and keeps its source explicit", () => {
